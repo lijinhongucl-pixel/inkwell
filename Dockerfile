@@ -5,7 +5,7 @@
 
 # ---------- Stage 1: builder ----------
 # 依赖（Pillow）在 PyPI 有 manylinux wheel，无需装编译器
-FROM python:3.13-slim AS builder
+FROM python:3.14-slim AS builder
 
 # 设置环境，避免 .pyc 和缓冲，减少体积
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -26,7 +26,7 @@ RUN python -m venv /opt/venv \
 
 # ---------- Stage 2: runtime ----------
 # 纯运行时，不装编译工具，镜像最小化
-FROM python:3.13-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 # 安全：用非 root 用户运行
 ENV PYTHONDONTWRITEBYTECODE=1 \
