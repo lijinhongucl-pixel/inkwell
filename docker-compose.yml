@@ -1,0 +1,21 @@
+services:
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: inkwell:latest
+    container_name: inkwell
+    volumes:
+      # 把你的 Markdown 放这里
+      - ./input:/app/input:ro
+      # 产出的 HTML / PNG 写这里
+      - ./output:/app/output
+    environment:
+      # 需要 CDN 上传时在宿主机 export GITHUB_TOKEN，或改用 --env-file .env
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+    # 默认显示帮助；实际用法见 README
+    command: ["--help"]
+    # 非 root 用户运行（与 Dockerfile 中的 appuser 一致）
+    user: "1001:1001"
+    # 一次性任务，运行完即退出
+    restart: "no"

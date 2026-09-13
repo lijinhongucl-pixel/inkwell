@@ -1,0 +1,5 @@
+# 开发与 CI 共用的工具链版本（与 pyproject.toml 的 [dev] extra 保持一致）
+ruff>=0.4
+pytest>=7.4
+pytest-cov>=4.1
+build>=1.2

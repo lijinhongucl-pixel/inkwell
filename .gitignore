@@ -1,0 +1,42 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+build/
+dist/
+wheels/
+.venv/
+venv/
+env/
+ENV/
+
+# ---- 测试与覆盖率 ----
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.tox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.hypothesis/
+
+# ---- 环境与密钥 ----
+.env
+.env.*
+!.env.example
+*.pem
+
+# ---- Inkwell 产出（输入用 sample/ 与 examples/）----
+output/
+cards/
+
+# ---- 编辑器与系统 ----
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

@@ -1,0 +1,83 @@
+[project]
+name = "inkwell"
+version = "0.7.4"
+description = "Markdown → WeChat HTML → Magazine Cover → Social Cards → Publish. One command, full pipeline."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Inkwell contributors"},
+]
+keywords = [
+    "wechat",
+    "markdown",
+    "html",
+    "cover",
+    "social-card",
+    "publishing",
+    "pipeline",
+    "cli",
+    "inkwell",
+    "xiaohongshu",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Text Processing :: Markup :: HTML",
+    "Topic :: Text Processing :: Markup :: Markdown",
+    "Typing :: Typed",
+]
+dependencies = [
+    "Pillow>=10.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+inkwell = "inkwell.cli:main"
+
+# ⚠️ 发布到 PyPI 前必须把 your-org 换成真实 GitHub 账号/组织名，
+#    否则 PyPI 项目页所有链接都会 404。
+[project.urls]
+Homepage = "https://github.com/your-org/inkwell"
+Repository = "https://github.com/your-org/inkwell"
+Issues = "https://github.com/your-org/inkwell/issues"
+Changelog = "https://github.com/your-org/inkwell/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/your-org/inkwell#readme"
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"inkwell" = ["screenshot.js", "py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]

@@ -1,0 +1,52 @@
+# Git
+.git
+.gitignore
+
+# Python 缓存与虚拟环境
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# 测试与覆盖率
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+tests/
+
+# CI 与开发文件
+.github/
+requirements-dev.txt
+.pre-commit-config.yaml
+.editorconfig
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+SECURITY.md
+CHANGELOG.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 输出
+output/
+build/
+dist/
+*.egg-info/
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# Docker 自身
+Dockerfile
+.dockerignore
+docker-compose.yml

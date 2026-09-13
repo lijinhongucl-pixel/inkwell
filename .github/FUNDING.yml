@@ -1,0 +1,12 @@
+# GitHub Sponsors / 资助配置
+#
+# 全部字段默认注释掉 —— GitHub 只读取未被注释的键，
+# 所以这个文件当前是「惰性的」：不会在仓库页面显示 Sponsor 按钮，
+# 也不会因为占位符而报错。
+#
+# 想开启赞助入口时，取消注释并填入你自己的账号即可，例如：
+#
+# github: [your-github-username]
+# open_collective: your-collective
+# ko_fi: your-kofi
+# custom: ["https://example.com/sponsor"]
