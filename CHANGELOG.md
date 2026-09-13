@@ -53,6 +53,11 @@ ubuntu 与 Windows 双双失败，暴露出两个**在 macOS 本地永远跑不�
   v5→v7、`setup-buildx-action` v3→v4、`build-push-action` v5→v7、`codecov-action`
   v4→v7。其中 codecov-action 自 v6 起切到 node24，且 v7 无必填输入（公开仓库
   可无 token 上传），与本项目现有配置兼容
+- **运行时依赖 `Pillow` 下限 10.0 → 12.3.0**：源码只用到
+  `Image.open` / `resize` / `Image.LANCZOS`，API 面很稳；但 `Pillow>=10.0` 这个
+  下限从未被验证过 —— CI 与本地实际装的都是解析出的最新版，10.x 一次都没跑过。
+  另外 Pillow 历史上有多次 CVE，下限停在 2023 年的 10.0 会让用户装到已修复
+  漏洞的版本。同上，下限应当等于真正验证过的版本
 
 ### Fixed
 - **dependabot 配置改为按生态整组更新**：原先只对 minor/patch 分组，于是每个
