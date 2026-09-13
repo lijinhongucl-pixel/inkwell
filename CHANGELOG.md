@@ -5,34 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.7.6] - 2026-09-13
+## [0.7.8] - 2026-09-13
 
-首次推送后 CI 抓出的问题修复。这一轮的价值几乎全在 CI 上：三平台里只有 macOS 全绿，
-ubuntu 与 Windows 双双失败，暴露出两个**在 macOS 本地永远跑不出来**的缺陷。
+**PyPI 发行名改为 `inkwell-press`。** 起因是准备对外介绍文案时去核对包名，
+结果发现 README 里的 `pip install inkwell` 装的根本不是本项目。
 
 ### Fixed
-- **非 macOS 平台必挂的测试**：`test_macos_writer_sets_html_flavor` 只 mock 了
-  `subprocess.run`，**漏 mock `shutil.which`**。该用例验证的是 AppleScript 命令构造，
-  与运行平台无关，但没屏蔽能力探测，于是在 Linux / Windows 上直接
-  `RuntimeError: 未找到 osascript`。补上 mock
-- **Windows 上 9 个测试 `UnicodeDecodeError`**：测试读取产出 HTML 时写成
-  `read_text()`，而 Windows 默认编码是 cp1252，读到 UTF-8 中文就崩
-  （`'charmap' codec can't decode byte 0x90`）。测试侧共 14 处文件读写补上
-  `encoding="utf-8"`。**库代码本身没有问题** —— `src/inkwell/` 内所有读写此前
-  就已显式指定编码，这一轮逐个核对过
-
-### Added
-- **编码守卫（CI）**：新增 `ruff check --preview --select PLW1514` 独立步骤，
-  机械拦截「文件读写漏写 `encoding`」这一类缺陷。之所以单独一条而不并进主 lint，
-  是因为该规则仍在 preview 阶段，全局打开 preview 会让 lint 结果随 ruff 版本漂移
-- **CONTRIBUTING 新增「跨平台铁律」与「平台支持现状」**：写明必须显式指定编码、
-  验证平台专属分支时要 mock 能力探测，并如实列出三平台能力矩阵
+- **`pip install inkwell` 指向的是别人的包**：PyPI 上的 `inkwell` 是 Michael Shepanski
+  的 Qt 深色主题（[pkkid/python-inkwell](https://github.com/pkkid/python-inkwell)，
+  最后发布 2023-03），与本项目毫无关系。照 README 安装的人会拿到一个主题库，
+  再发现 `inkwell` 命令不存在。发行名改为 `inkwell-press`（已核实该名在 PyPI 上
+  未被占用）
+- **近名项目 `inkwell-cli` 也必须避开**：PyPI 上的 `inkwell-cli` 是
+  [chekos/inkwell-cli](https://github.com/chekos/inkwell-cli)（播客转 Markdown 笔记），
+  它的**导入包名与命令名同样叫 `inkwell`**，与本项目在发行名、导入名、命令名三个
+  维度全部撞名。README 中英文顶部各加了一段醒目提示，并写明两者不可装进同一环境
+- **CHANGELOG 版本顺序颠倒**：0.7.7 被排在 0.7.6 之后，不符合「新版本在前」，
+  一并纠正
 
 ### Changed
-- **README 补充平台支持说明**：「复制到公众号」是头号卖点，但富文本剪贴板只在
-  macOS（AppleScript）与 Linux（`xclip`）上有实现，**Windows 会降级为纯文本**。
-  此前 README 对此只字未提，Windows 用户会白踩一次坑。现在明确写出降级行为与
-  替代做法（用浏览器打开 `_预览.html` 手动复制）
+- **README 补上发行名说明**：解释发行名 `inkwell-press` 与命令名 `inkwell` 为何
+  不一致；`git clone` 后面的占位地址换成本仓库真实地址
+- **导入包名与 CLI 命令名保持不变**（仍是 `inkwell`）：改名只发生在 PyPI 发行层，
+  源码、测试、CI 与用户已熟悉的命令都不受影响
+- **安装指引改为以源码安装为主**：`inkwell-press` 这个发行包**还没有上传到 PyPI**
+  （实测 `/pypi/inkwell-press/json` 返回 404），所以不能只把安装命令换个名字就完事
+  —— 那只是把「装错包」变成「装不上」。README 中英文的安装段改为先给可用的源码
+  安装，PyPI 单独成节并明确标注尚未发布
 
 ## [0.7.7] - 2026-09-13
 
@@ -71,6 +70,35 @@ ubuntu 与 Windows 双双失败，暴露出两个**在 macOS 本地永远跑不�
 - **Docker 基础镜像的 Python 主版本不再自动升**：CI 矩阵只测 3.11 / 3.12 / 3.13，
   classifiers 也只声明到 3.13。自动跳到 3.14 等于往发布镜像里塞一个从没被测过的
   解释器，所以加了 `ignore` 规则；要升主版本，应当先扩 CI 矩阵
+
+## [0.7.6] - 2026-09-13
+
+首次推送后 CI 抓出的问题修复。这一轮的价值几乎全在 CI 上：三平台里只有 macOS 全绿，
+ubuntu 与 Windows 双双失败，暴露出两个**在 macOS 本地永远跑不出来**的缺陷。
+
+### Fixed
+- **非 macOS 平台必挂的测试**：`test_macos_writer_sets_html_flavor` 只 mock 了
+  `subprocess.run`，**漏 mock `shutil.which`**。该用例验证的是 AppleScript 命令构造，
+  与运行平台无关，但没屏蔽能力探测，于是在 Linux / Windows 上直接
+  `RuntimeError: 未找到 osascript`。补上 mock
+- **Windows 上 9 个测试 `UnicodeDecodeError`**：测试读取产出 HTML 时写成
+  `read_text()`，而 Windows 默认编码是 cp1252，读到 UTF-8 中文就崩
+  （`'charmap' codec can't decode byte 0x90`）。测试侧共 14 处文件读写补上
+  `encoding="utf-8"`。**库代码本身没有问题** —— `src/inkwell/` 内所有读写此前
+  就已显式指定编码，这一轮逐个核对过
+
+### Added
+- **编码守卫（CI）**：新增 `ruff check --preview --select PLW1514` 独立步骤，
+  机械拦截「文件读写漏写 `encoding`」这一类缺陷。之所以单独一条而不并进主 lint，
+  是因为该规则仍在 preview 阶段，全局打开 preview 会让 lint 结果随 ruff 版本漂移
+- **CONTRIBUTING 新增「跨平台铁律」与「平台支持现状」**：写明必须显式指定编码、
+  验证平台专属分支时要 mock 能力探测，并如实列出三平台能力矩阵
+
+### Changed
+- **README 补充平台支持说明**：「复制到公众号」是头号卖点，但富文本剪贴板只在
+  macOS（AppleScript）与 Linux（`xclip`）上有实现，**Windows 会降级为纯文本**。
+  此前 README 对此只字未提，Windows 用户会白踩一次坑。现在明确写出降级行为与
+  替代做法（用浏览器打开 `_预览.html` 手动复制）
 
 ## [0.7.5] - 2026-09-13
 
@@ -112,7 +140,7 @@ README 修复、仓库瘦身与仓库地址落位。这一轮解决的是「打�
   macOS / Windows 各一条冒烟任务
 - **打包声明了 5 个零引用依赖**：`markdown` / `beautifulsoup4` / `lxml` /
   `requests` / `pygments` 在源码里一次都没用到（AST 全量扫描确认），
-  仅 `Pillow` 是真实依赖。`pip install inkwell` 的依赖树显著变小
+  仅 `Pillow` 是真实依赖，从 PyPI 安装时的依赖树显著变小
 - **`package-data` 指向不存在的目录**：`templates/*.html`、`templates/*.css`
   在包里根本不存在，是死配置；改为只声明真实存在的 `screenshot.js` 与 `py.typed`
 - **`Typing :: Typed` 分类器是空头承诺**：声明了类型化却没有 `py.typed` 标记文件，

@@ -11,13 +11,20 @@ Markdown → WeChat HTML → Magazine Cover → Social Cards → Publish.
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-multi--stage-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Version](https://img.shields.io/badge/version-0.7.7-green.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.7.8-green.svg)](./CHANGELOG.md)
 
 [English](#english) | [中文](#中文)
 
 </div>
 
 ---
+
+> **⚠️ 本项目的 PyPI 发行名是 `inkwell-press`，不是 `inkwell`**
+>
+> - `pip install inkwell` → 装到无关的 **Qt 深色主题**（[pkkid/python-inkwell](https://github.com/pkkid/python-inkwell)）
+> - `pip install inkwell-cli` → 装到无关的 **播客转 Markdown 笔记工具**（[chekos/inkwell-cli](https://github.com/chekos/inkwell-cli)）。该项目的导入包名与命令名也叫 `inkwell`，**不要与本项目装进同一个 Python 环境**
+>
+> ✅ 本项目的发行名是 `inkwell-press`（**尚未上传 PyPI**，当前请从源码安装，见[安装](#安装)一节）
 
 ## 中文
 
@@ -87,17 +94,27 @@ inkwell publish --target clipboard   # 复制到剪贴板，粘贴即发
 ### 安装
 
 ```bash
-# pip 安装（HTML 排版/封面/卡片全部可用）
-pip install inkwell
-
-# 本地开发
-git clone <your-repo-url>
+# 从源码安装（当前可用）
+git clone https://github.com/lijinhongucl-pixel/inkwell.git
 cd inkwell
-pip install -e ".[dev]"
+pip install -e .
+pip install -e ".[dev]"      # 要跑测试或 lint 时才需要
 
 # Docker
 docker build -t inkwell .
 ```
+
+#### 从 PyPI 安装（发行名 `inkwell-press`，**尚未发布**）
+
+```bash
+pip install inkwell-press
+```
+
+**为什么发行名和命令名不一样**：PyPI 上的 `inkwell` 已被一个无关的 Qt 主题占用，
+所以本项目的发行名定为 `inkwell-press`；装好之后导入包名与命令行都还是 `inkwell`。
+
+⚠️ **这个发行包目前还没有上传到 PyPI**，上面那行现在执行会报
+`No matching distribution found`。请先用上面的源码方式安装。
 
 #### 可选：PNG 截图支持
 
@@ -392,6 +409,13 @@ pip install pre-commit && pre-commit install
 
 ## English
 
+> **⚠️ The PyPI distribution is `inkwell-press`, not `inkwell`**
+>
+> - `pip install inkwell` → an unrelated **Qt dark theme** ([pkkid/python-inkwell](https://github.com/pkkid/python-inkwell))
+> - `pip install inkwell-cli` → an unrelated **podcast-to-markdown tool** ([chekos/inkwell-cli](https://github.com/chekos/inkwell-cli)). That project also ships an `inkwell` import package and an `inkwell` console command, so **do not install both into the same Python environment**
+>
+> ✅ This project's distribution name is `inkwell-press` (**not uploaded to PyPI yet** — install from source for now, see [Install](#install))
+
 ### The Problem
 
 ```
@@ -436,13 +460,28 @@ inkwell publish --target clipboard   # Copy to clipboard, paste and publish
 ### Install
 
 ```bash
-pip install inkwell
-# or from source
-git clone <your-repo-url> && cd inkwell
-pip install -e ".[dev]"
+# From source (works today)
+git clone https://github.com/lijinhongucl-pixel/inkwell.git && cd inkwell
+pip install -e .
+pip install -e ".[dev]"      # only if you need tests / lint
+
 # Docker
 docker build -t inkwell .
 ```
+
+#### From PyPI (distribution `inkwell-press`, **not published yet**)
+
+```bash
+pip install inkwell-press
+```
+
+**Why the distribution name differs from the command name.** The plain `inkwell` name on
+PyPI is taken by an unrelated Qt theme, so this project's distribution is named
+`inkwell-press`. After installing, both the import package and the console command are
+still named `inkwell`.
+
+⚠️ **This distribution has not been uploaded to PyPI yet**, so the line above currently
+fails with `No matching distribution found`. Use the source install for now.
 
 ### Quick Start
 
