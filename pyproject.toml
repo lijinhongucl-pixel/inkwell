@@ -51,14 +51,12 @@ dev = [
 [project.scripts]
 inkwell = "inkwell.cli:main"
 
-# ⚠️ 发布到 PyPI 前必须把 your-org 换成真实 GitHub 账号/组织名，
-#    否则 PyPI 项目页所有链接都会 404。
 [project.urls]
-Homepage = "https://github.com/your-org/inkwell"
-Repository = "https://github.com/your-org/inkwell"
-Issues = "https://github.com/your-org/inkwell/issues"
-Changelog = "https://github.com/your-org/inkwell/blob/main/CHANGELOG.md"
-Documentation = "https://github.com/your-org/inkwell#readme"
+Homepage = "https://github.com/lijinhongucl-pixel/inkwell"
+Repository = "https://github.com/lijinhongucl-pixel/inkwell"
+Issues = "https://github.com/lijinhongucl-pixel/inkwell/issues"
+Changelog = "https://github.com/lijinhongucl-pixel/inkwell/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/lijinhongucl-pixel/inkwell#readme"
 
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]

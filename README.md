@@ -6,9 +6,9 @@
 
 Markdown → WeChat HTML → Magazine Cover → Social Cards → Publish.
 
-<!-- 仓库 push 到 GitHub 后，把下面这行换成真实 CI 状态徽章（静态徽章不含「通过/失败」结论，
-     只是告诉读者 CI 跑在 GitHub Actions 上，避免占位期 README 出现裂图）：
-     [![CI](https://github.com/<你的账号>/inkwell/actions/workflows/ci.yml/badge.svg)](https://github.com/<你的账号>/inkwell/actions/workflows/ci.yml) -->
+<!-- 静态徽章不依赖仓库地址，任何时候都能出图；但它只说明「CI 跑在 GitHub Actions 上」，
+     不表达通过与否。下面这行是 push 后要换上的真实 CI 状态徽章（取消注释、删掉上面那行即可）：
+     [![CI](https://github.com/lijinhongucl-pixel/inkwell/actions/workflows/ci.yml/badge.svg)](https://github.com/lijinhongucl-pixel/inkwell/actions/workflows/ci.yml) -->
 [![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)](./.github/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -380,7 +380,7 @@ pip install pre-commit && pre-commit install
 | [SECURITY.md](./SECURITY.md) | 漏洞报告渠道与关注的风险面 |
 | [CHANGELOG.md](./CHANGELOG.md) | 版本变更记录 |
 
-发现可复现的缺陷或想提功能请求，请用 [Issue 模板](https://github.com/your-org/inkwell/issues/new/choose)；
+发现可复现的缺陷或想提功能请求，请用 [Issue 模板](https://github.com/lijinhongucl-pixel/inkwell/issues/new/choose)；
 用法咨询与想法讨论更适合走 Discussions。
 
 ---

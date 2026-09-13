@@ -7,14 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.7.5] - 2026-09-13
 
-README 修复与仓库瘦身。这一轮解决的是「打开仓库首页就看到裂图」和「源码树里躺着
-一堆不该提交的中间产物」两类观感问题。
+README 修复、仓库瘦身与仓库地址落位。这一轮解决的是「打开仓库首页就看到裂图」、
+「源码树里躺着一堆不该提交的中间产物」、「文档里的链接全指向不存在的占位账号」
+三类问题。
 
 ### Fixed
-- **README 首屏裂图**：CI 徽章用的是 GitHub Actions 动态徽章，地址指向占位账号
-  `github.com/your-org/...`，仓库尚未 push 时必然 404，README 顶部就是一个
-  「图片加载失败」的破框；改为不依赖仓库地址的 shields.io 静态徽章（`CI` +
-  GitHub Actions 图标），并附上 push 后换回动态徽章的一行注释
+- **README 首屏裂图**：CI 徽章用的是 GitHub Actions 动态徽章，仓库尚未 push 时
+  该地址必然 404，README 顶部就是一个「图片加载失败」的破框；改为不依赖仓库地址的
+  shields.io 静态徽章（`CI` + GitHub Actions 图标），并附注释写明 push 后换回
+  真实 CI 状态徽章的替换行
+
+### Changed
+- **仓库地址落位**：`pyproject.toml` 的 `[project.urls]`（5 条）、README 的 Issue
+  模板链接、`.github/ISSUE_TEMPLATE/config.yml` 的 Discussions 与安全公告链接，
+  全部从占位账号 `your-org` 换成真实仓库 `github.com/lijinhongucl-pixel/inkwell`。
+  占位期间这些链接一律 404，装到本地的人点进去也是死链
 
 ### Removed
 - `src/inkwell.egg-info/`：`pip install -e .` 生成的构建产物，内含已过期的
