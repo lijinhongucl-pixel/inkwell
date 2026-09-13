@@ -59,7 +59,7 @@ Changelog = "https://github.com/lijinhongucl-pixel/inkwell/blob/main/CHANGELOG.m
 Documentation = "https://github.com/lijinhongucl-pixel/inkwell#readme"
 
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
+requires = ["setuptools>=84.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
