@@ -60,6 +60,11 @@ ubuntu 与 Windows 双双失败，暴露出两个**在 macOS 本地永远跑不�
   漏洞的版本。同上，下限应当等于真正验证过的版本
 
 ### Fixed
+- **CI 不再在 main 上取消进行中的运行**：原先 `cancel-in-progress: true` 对
+  `main` 也生效，于是连续两次 push 会把前一次运行取消（`concluded=cancelled`）。
+  而 GitHub 的 workflow 徽章把 **cancelled 也算作 failing** —— 结果是代码一次
+  都没失败，README 顶部的 CI 徽章却瞬间变成红色的「CI failing」。改为只在
+  `pull_request` 上取消，main 的推送排队等待，代价是晚几十秒，换来徽章始终如实
 - **dependabot 配置改为按生态整组更新**：原先只对 minor/patch 分组，于是每个
   过期的下限各开一个 PR —— 首次启用一周就攒了 11 个，且全部为红，反而淹没真正的
   信号。改为 major/minor/patch 全部并入同一组，每个生态每周最多 1 个 PR

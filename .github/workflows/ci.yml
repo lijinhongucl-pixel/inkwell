@@ -11,8 +11,13 @@ permissions:
   contents: read
 
 concurrency:
+  # 只在 PR 上取消进行中的运行 —— 同分支连续 push 时，旧的那次确实没必要跑完。
+  # main 上**不取消**：GitHub 的 workflow 徽章把 concluded=cancelled 也算作
+  # failing，所以「连续推两次」会立刻把 README 上的 CI 徽章刷成红色的
+  # 「CI failing」—— 但代码其实没有任何一次失败，是纯粹的假信号。
+  # 推 main 改为排队等待，代价是晚几十秒，换来徽章始终如实。
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   lint:
