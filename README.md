@@ -13,7 +13,7 @@ Markdown → WeChat HTML → Magazine Cover → Social Cards → Publish.
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-multi--stage-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Version](https://img.shields.io/badge/version-0.7.5-green.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.7.6-green.svg)](./CHANGELOG.md)
 
 [English](#english) | [中文](#中文)
 
@@ -157,6 +157,13 @@ inkwell validate output/article_preview.html
 > **关于两版产出**：`run` 会同时生成 `_预览.html`（发布版，图片走 CDN 外链，
 > 用于复制到公众号）和 `_预览_本地版.html`（图片内嵌 base64，用于 IDE 预览面板
 > 等加载不了外网的环境）。两版正文完全一致，只有图片承载方式不同。
+
+> **平台支持（重要）**：`--target clipboard` 写入**富文本**依赖系统能力 ——
+> macOS 走 AppleScript 写入 `«class HTML»` flavor；Linux 走 `xclip`
+> （需 `apt install xclip`）。**Windows 目前没有富文本剪贴板实现**：
+> 会降级为纯文本并明确提示，直接粘贴到公众号只能得到无格式文字。
+> Windows 用户请改为在浏览器打开 `_预览.html` → 全选 → 复制。
+> 其余功能（排版、封面、社交卡片、兼容性校验、字数统计）三平台行为一致。
 
 
 ### Docker

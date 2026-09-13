@@ -250,6 +250,10 @@ class TestClipboardHtml:
             return FakeProc()
 
         monkeypatch.setattr("subprocess.run", fake_run)
+        # 这个用例验证的是 AppleScript 命令的构造方式，与运行平台无关，
+        # 所以必须把 shutil.which 一并 mock 掉；否则在 Linux / Windows 上
+        # _copy_html_macos 会因为找不到 osascript 直接抛 RuntimeError。
+        monkeypatch.setattr("shutil.which", lambda name: "/usr/bin/osascript")
         Publisher._copy_html_macos("<p>正文</p>", "正文")
         script = captured["cmd"][2]
         assert "«class HTML»" in script

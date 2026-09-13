@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.6] - 2026-09-13
+
+首次推送后 CI 抓出的问题修复。这一轮的价值几乎全在 CI 上：三平台里只有 macOS 全绿，
+ubuntu 与 Windows 双双失败，暴露出两个**在 macOS 本地永远跑不出来**的缺陷。
+
+### Fixed
+- **非 macOS 平台必挂的测试**：`test_macos_writer_sets_html_flavor` 只 mock 了
+  `subprocess.run`，**漏 mock `shutil.which`**。该用例验证的是 AppleScript 命令构造，
+  与运行平台无关，但没屏蔽能力探测，于是在 Linux / Windows 上直接
+  `RuntimeError: 未找到 osascript`。补上 mock
+- **Windows 上 9 个测试 `UnicodeDecodeError`**：测试读取产出 HTML 时写成
+  `read_text()`，而 Windows 默认编码是 cp1252，读到 UTF-8 中文就崩
+  （`'charmap' codec can't decode byte 0x90`）。测试侧共 14 处文件读写补上
+  `encoding="utf-8"`。**库代码本身没有问题** —— `src/inkwell/` 内所有读写此前
+  就已显式指定编码，这一轮逐个核对过
+
+### Added
+- **编码守卫（CI）**：新增 `ruff check --preview --select PLW1514` 独立步骤，
+  机械拦截「文件读写漏写 `encoding`」这一类缺陷。之所以单独一条而不并进主 lint，
+  是因为该规则仍在 preview 阶段，全局打开 preview 会让 lint 结果随 ruff 版本漂移
+- **CONTRIBUTING 新增「跨平台铁律」与「平台支持现状」**：写明必须显式指定编码、
+  验证平台专属分支时要 mock 能力探测，并如实列出三平台能力矩阵
+
+### Changed
+- **README 补充平台支持说明**：「复制到公众号」是头号卖点，但富文本剪贴板只在
+  macOS（AppleScript）与 Linux（`xclip`）上有实现，**Windows 会降级为纯文本**。
+  此前 README 对此只字未提，Windows 用户会白踩一次坑。现在明确写出降级行为与
+  替代做法（用浏览器打开 `_预览.html` 手动复制）
+
 ## [0.7.5] - 2026-09-13
 
 README 修复、仓库瘦身与仓库地址落位。这一轮解决的是「打开仓库首页就看到裂图」、

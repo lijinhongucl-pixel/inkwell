@@ -55,6 +55,8 @@ pytest tests/ -v
 - [ ] 代码通过所有现有测试
 - [ ] 新功能有对应的新测试
 - [ ] 没有引入个人信息或内部地址
+- [ ] 文件读写都显式带上了 `encoding="utf-8"`（见「跨平台铁律」）
+- [ ] 验证平台专属分支时 mock 了能力探测（`shutil.which` 等），而不是依赖当前平台
 - [ ] 如果新增了 CLI 子命令，更新了 `skill/SKILL.md`
 - [ ] 如果新增了主题或视觉风格，更新了 `README.md` 对应表格
 - [ ] commit message 遵循 Conventional Commits
@@ -96,6 +98,50 @@ pytest tests/test_visual_modules.py -v
 | `data:image;base64`（发布版） | CDN 外链 |
 
 新增的主题或排版逻辑必须通过 `CopyCompatValidator` 的校验。
+
+### 跨平台铁律（Windows CI 会抓到）
+
+CI 在 ubuntu / macOS / Windows 三平台都跑测试，下面两条是本项目已经踩过的坑：
+
+1. **所有文件读写必须显式指定 `encoding="utf-8"`**
+
+   ```python
+   path.read_text()                        # ✗ Windows 默认 cp1252，含中文直接 UnicodeDecodeError
+   path.read_text(encoding="utf-8")        # ✓
+   ```
+
+   本项目产出全是中文内容，漏写编码在 macOS / Linux 上**永远发现不了**，只会在 Windows 崩。
+   CI 有一道专门的守卫会拦住它：
+
+   ```bash
+   ruff check --preview --select PLW1514 src/ tests/
+   ```
+
+2. **验证平台专属分支时，要 mock 掉能力探测，而不是依赖当前平台**
+
+   ```python
+   # ✗ 只 mock subprocess.run：在非 macOS 上会因 shutil.which("osascript") 返回 None 而抛错
+   monkeypatch.setattr("subprocess.run", fake_run)
+
+   # ✓ 同时 mock 能力探测，用例才与运行平台无关
+   monkeypatch.setattr("subprocess.run", fake_run)
+   monkeypatch.setattr("shutil.which", lambda name: "/usr/bin/osascript")
+   ```
+
+### 平台支持现状
+
+真正存在平台差异的只有剪贴板富文本写入这一处：
+
+| 能力 | macOS | Linux | Windows |
+|------|-------|-------|---------|
+| 排版 / 封面 / 社交卡片 / 兼容性校验 / 字数统计 | ✅ | ✅ | ✅ |
+| 剪贴板**富文本**写入（`publish --target clipboard`） | ✅ AppleScript | ✅ 需装 `xclip` | ❌ 降级纯文本 |
+| HTML → PNG 栅格化（`--png`） | 需 Node + playwright-core | 同左 | 同左 |
+
+`--png` **不是平台差异**：三个平台都要求自行装 Node.js + `playwright-core`，
+缺失时统一降级（输出 HTML、跳过 PNG、给出安装指引），不区分操作系统。
+
+Windows 的富文本剪贴板（CF_HTML）尚未实现，欢迎 PR。
 
 ### 新增主题
 

@@ -38,14 +38,14 @@ class TestCoverGenerator:
         gen = CoverGenerator()
         spec = CoverSpec(title_prefix="测试", title_em="封面")
         wide, _ = gen.generate(spec, output_dir=tmp_path)
-        html = wide.read_text()
+        html = wide.read_text(encoding="utf-8")
         assert 'data-vds-schema="v3.1"' in html
 
     def test_cover_has_watermark(self, tmp_path):
         gen = CoverGenerator()
         spec = CoverSpec(title_prefix="测", issue_no="09")
         wide, _ = gen.generate(spec, output_dir=tmp_path)
-        assert "material" in wide.read_text()
+        assert "material" in wide.read_text(encoding="utf-8")
 
     def test_data_bar_rendered(self, tmp_path):
         gen = CoverGenerator()
@@ -54,7 +54,7 @@ class TestCoverGenerator:
             data_bar=[("100", "ms", "延迟"), ("200", "MB", "体积")],
         )
         wide, _ = gen.generate(spec, output_dir=tmp_path)
-        html = wide.read_text()
+        html = wide.read_text(encoding="utf-8")
         assert "100" in html
         assert "延迟" in html
 
@@ -96,7 +96,7 @@ class TestSocialCardGenerator:
         gen = SocialCardGenerator()
         spec = CardSpec(platform="xhs", style="editorial", pages=[CardPage(title="test")])
         paths = gen.generate(spec, output_dir=tmp_path)
-        html = paths[0].read_text()
+        html = paths[0].read_text(encoding="utf-8")
         assert 'data-vds-format="3x4"' in html
 
     def test_list_platforms(self):
@@ -133,7 +133,7 @@ class TestSocialCardGenerator:
         )
         paths = gen.generate(spec, output_dir=tmp_path)
         assert len(paths) == 3
-        html = paths[0].read_text()
+        html = paths[0].read_text(encoding="utf-8")
         assert "data-vds-format" in html
         assert 'lang="en"' in html  # 海外平台用英文
 
@@ -145,7 +145,7 @@ class TestSocialCardGenerator:
             pages=[CardPage(title="Story Card")],
         )
         paths = gen.generate(spec, output_dir=tmp_path)
-        html = paths[0].read_text()
+        html = paths[0].read_text(encoding="utf-8")
         assert "aspect-ratio:9/16" in html
 
     def test_x_twitter_16x9(self, tmp_path):
@@ -156,7 +156,7 @@ class TestSocialCardGenerator:
             pages=[CardPage(title="Hot Take")],
         )
         paths = gen.generate(spec, output_dir=tmp_path)
-        html = paths[0].read_text()
+        html = paths[0].read_text(encoding="utf-8")
         assert "aspect-ratio:16/9" in html
 
     def test_pinterest_2x3(self, tmp_path):
@@ -167,7 +167,7 @@ class TestSocialCardGenerator:
             pages=[CardPage(title="DIY Guide")],
         )
         paths = gen.generate(spec, output_dir=tmp_path)
-        html = paths[0].read_text()
+        html = paths[0].read_text(encoding="utf-8")
         assert "aspect-ratio:2/3" in html
 
     def test_linkedin_generates(self, tmp_path):
@@ -189,7 +189,7 @@ class TestSocialCardGenerator:
             pages=[CardPage(title="Must Watch")],
         )
         paths = gen.generate(spec, output_dir=tmp_path)
-        html = paths[0].read_text()
+        html = paths[0].read_text(encoding="utf-8")
         assert "aspect-ratio:16/9" in html
 
     def test_total_platform_count(self):
@@ -368,7 +368,7 @@ class TestDesignAuditor:
   <img src="https://cdn.example.com/img.png" />
 </section></body></html>"""
         f = tmp_path / "cover.html"
-        f.write_text(html)
+        f.write_text(html, encoding="utf-8")
         auditor = DesignAuditor()
         report = auditor.audit_html_cover(f)
         assert report.all_passed
@@ -376,7 +376,7 @@ class TestDesignAuditor:
     def test_audit_missing_title_fails_gate1(self, tmp_path):
         html = '<html><head><meta charset="UTF-8"></head><body><p>no title</p></body></html>'
         f = tmp_path / "bad.html"
-        f.write_text(html)
+        f.write_text(html, encoding="utf-8")
         auditor = DesignAuditor()
         report = auditor.audit_html_cover(f)
         gate1 = report.gates[0]
@@ -390,7 +390,7 @@ class TestDesignAuditor:
 <img src="data:image/png;base64,iVBOR..." />
 </body></html>"""
         f = tmp_path / "b64.html"
-        f.write_text(html)
+        f.write_text(html, encoding="utf-8")
         auditor = DesignAuditor()
         report = auditor.audit_html_cover(f)
         gate3 = report.gates[2]
@@ -403,7 +403,7 @@ class TestDesignAuditor:
 <p style="color:#333;">text</p>
 </body></html>"""
         f = tmp_path / "thin.html"
-        f.write_text(html)
+        f.write_text(html, encoding="utf-8")
         auditor = DesignAuditor()
         report = auditor.audit_html_cover(f)
         gate2 = report.gates[1]
@@ -412,7 +412,7 @@ class TestDesignAuditor:
     def test_audit_report_summary(self, tmp_path):
         html = '<html><head><meta charset="UTF-8"></head><body><h1 style="font-size:48px;">x</h1><h2 style="font-size:24px;">y</h2></body></html>'
         f = tmp_path / "simple.html"
-        f.write_text(html)
+        f.write_text(html, encoding="utf-8")
         auditor = DesignAuditor()
         report = auditor.audit_html_article(f)
         summary = report.summary()

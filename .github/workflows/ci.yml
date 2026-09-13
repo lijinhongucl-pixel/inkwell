@@ -35,6 +35,13 @@ jobs:
       - name: ruff format check
         run: ruff format --check src/ tests/
 
+      - name: ruff check (编码守卫)
+        # 单独一条、不并进上面的 select：PLW1514 目前仍在 preview 阶段，
+        # 全局打开 preview 会让 lint 结果随 ruff 版本漂移。
+        # 它拦的是「文件读写漏写 encoding="utf-8"」——这类缺陷在 macOS / Linux
+        # 上永远暴露不出来，只会在 Windows 上炸成 UnicodeDecodeError。
+        run: ruff check --preview --select PLW1514 src/ tests/
+
   test:
     name: Test (${{ matrix.os }} / Python ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
