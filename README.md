@@ -4,6 +4,8 @@
 
 **The only CLI that takes you from idea to published — not just formatting.**
 
+**一行命令，从 Markdown 到发布 —— 不只是排版。**
+
 Markdown → WeChat HTML → Magazine Cover → Social Cards → Publish.
 
 <!-- CI 状态徽章，直接读 .github/workflows/ci.yml 在 main 上的最近一次运行结果 -->
@@ -16,6 +18,24 @@ Markdown → WeChat HTML → Magazine Cover → Social Cards → Publish.
 [English](#english) | [中文](#中文)
 
 </div>
+
+---
+
+## 项目概况
+
+**Inkwell 是一条从 Markdown 直通发布的内容流水线**：写完文章之后那些最耗时的机械活，
+它一次做完 —— 排版成能直接粘进公众号的 HTML、压缩并上传配图、生成杂志封面与社交卡片，
+最后推送到剪贴板或公众号草稿箱。
+
+| 维度 | 说明 |
+|------|------|
+| **形态** | Python CLI（`inkwell`），另提供 Docker 镜像与 AI Agent Skill |
+| **覆盖环节** | 排版 · 图片处理 · 封面 · 社交卡片 · 合规检测 · 发布 |
+| **给谁用** | 一个人运营多个平台的创作者；需要批量产出、想接进自动化流水线的内容团队 |
+| **第一次使用** | 一条 `inkwell run article.md`，产出的 HTML 可直接粘进编辑器 |
+| **不需要** | 美术功底、AI 生图 API；没装 Playwright 也照常出 HTML，只是跳过 PNG |
+| **和同类工具的差别** | doocs/md、mdnice 只解决「排版」一环，Inkwell 覆盖整条链路 |
+| **技术栈** | Python 3.11+ · Pillow · MIT · 151 条测试 · CI 三平台矩阵 |
 
 ---
 
@@ -389,7 +409,7 @@ inkwell/
 │   ├── screenshot.py         # Playwright HTML → PNG
 │   ├── design_audit.py       # 三门设计审计
 │   └── cover_advisor.py      # 封面设计建议
-├── tests/                    # 144 条测试
+├── tests/                    # 151 条测试
 ├── examples/  sample/        # 示例文章
 └── skill/                    # Agent Skill 定义
 ```
@@ -430,6 +450,23 @@ pip install pre-commit && pre-commit install
 > - `pip install inkwell-cli` → an unrelated **podcast-to-markdown tool** ([chekos/inkwell-cli](https://github.com/chekos/inkwell-cli)). That project also ships an `inkwell` import package and an `inkwell` console command, so **do not install both into the same Python environment**
 >
 > ✅ This project's distribution name is `inkwell-press` (**not uploaded to PyPI yet** — install from source for now, see [Install](#install))
+
+### Overview
+
+**Inkwell is a content pipeline that runs from Markdown straight to publishable output.**
+It takes the mechanical work that eats your time after writing — formatting for WeChat,
+compressing and hosting the images, generating magazine covers and social cards, then
+pushing the result to the clipboard or the WeChat draft box.
+
+| Aspect | Detail |
+|--------|--------|
+| **Form** | Python CLI (`inkwell`), plus a Docker image and an AI Agent Skill |
+| **Pipeline** | Formatting · image handling · cover · social cards · compliance check · publish |
+| **For whom** | Solo creators running several platforms; teams that need batch output or automation |
+| **First run** | One command — `inkwell run article.md` — and the HTML is ready to paste |
+| **Not required** | Design skills, an AI image API, or even Playwright (HTML still ships, PNG is skipped) |
+| **Versus others** | doocs/md and mdnice solve formatting only; Inkwell covers the whole chain |
+| **Stack** | Python 3.11+ · Pillow · MIT · 151 tests · CI matrix across three platforms |
 
 ### The Problem
 
