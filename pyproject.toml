@@ -1,6 +1,6 @@
 [project]
 name = "inkwell"
-version = "0.7.6"
+version = "0.7.7"
 description = "Markdown → WeChat HTML → Magazine Cover → Social Cards → Publish. One command, full pipeline."
 readme = "README.md"
 license = {text = "MIT"}
@@ -43,9 +43,10 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.4",
-    "pytest-cov>=4.1",
-    "ruff>=0.4",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.16.7",
+    "build>=1.6.1",
 ]
 
 [project.scripts]
@@ -59,7 +60,7 @@ Changelog = "https://github.com/lijinhongucl-pixel/inkwell/blob/main/CHANGELOG.m
 Documentation = "https://github.com/lijinhongucl-pixel/inkwell#readme"
 
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
+requires = ["setuptools>=84.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]

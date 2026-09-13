@@ -1,6 +1,11 @@
 version: 2
 updates:
   # Python 依赖
+  #
+  # 每个生态只用一个 group，把所有更新类型（major / minor / patch）都并进同一个 PR。
+  # 不分组时 dependabot 会为每一个过期的下限各开一个 PR —— 首次启用时一周就攒了
+  # 11 个，全是红的，反而淹没真正的信号。整组之后每个生态最多 1 个 PR，
+  # 一次 CI 跑完就能整体评估。
   - package-ecosystem: pip
     directory: "/"
     schedule:
@@ -8,16 +13,16 @@ updates:
       day: monday
       time: "06:00"
       timezone: Asia/Shanghai
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
     labels:
       - dependencies
       - python
     commit-message:
       prefix: "chore(deps)"
     groups:
-      python-minor-patch:
+      python-deps:
         patterns: ["*"]
-        update-types: [minor, patch]
+        update-types: [major, minor, patch]
 
   # GitHub Actions
   - package-ecosystem: github-actions
@@ -27,11 +32,16 @@ updates:
       day: monday
       time: "06:00"
       timezone: Asia/Shanghai
+    open-pull-requests-limit: 3
     labels:
       - dependencies
       - github-actions
     commit-message:
       prefix: "chore(ci)"
+    groups:
+      github-actions:
+        patterns: ["*"]
+        update-types: [major, minor, patch]
 
   # Docker
   - package-ecosystem: docker
@@ -43,3 +53,13 @@ updates:
       - docker
     commit-message:
       prefix: "chore(docker)"
+    groups:
+      docker:
+        patterns: ["*"]
+        update-types: [major, minor, patch]
+    ignore:
+      # 基础镜像的 Python 主版本不自动升。CI 矩阵只测 3.11 / 3.12 / 3.13，
+      # classifiers 也只声明到 3.13 —— 自动跳到 3.14 等于往镜像里塞一个
+      # 从没被测过的解释器。要升主版本时应当先扩 CI 矩阵，再改这里。
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major"]

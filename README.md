@@ -6,14 +6,12 @@
 
 Markdown → WeChat HTML → Magazine Cover → Social Cards → Publish.
 
-<!-- 静态徽章不依赖仓库地址，任何时候都能出图；但它只说明「CI 跑在 GitHub Actions 上」，
-     不表达通过与否。下面这行是 push 后要换上的真实 CI 状态徽章（取消注释、删掉上面那行即可）：
-     [![CI](https://github.com/lijinhongucl-pixel/inkwell/actions/workflows/ci.yml/badge.svg)](https://github.com/lijinhongucl-pixel/inkwell/actions/workflows/ci.yml) -->
-[![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)](./.github/workflows/ci.yml)
+<!-- CI 状态徽章，直接读 .github/workflows/ci.yml 在 main 上的最近一次运行结果 -->
+[![CI](https://github.com/lijinhongucl-pixel/inkwell/actions/workflows/ci.yml/badge.svg)](https://github.com/lijinhongucl-pixel/inkwell/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-multi--stage-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Version](https://img.shields.io/badge/version-0.7.6-green.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.7.7-green.svg)](./CHANGELOG.md)
 
 [English](#english) | [中文](#中文)
 
