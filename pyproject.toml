@@ -38,7 +38,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "Pillow>=10.0",
+    "Pillow>=12.3.0",
 ]
 
 [project.optional-dependencies]
