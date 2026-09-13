@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-09-13
+
+**修三个「拿自己的产出做验收」才会暴露的问题。** 起因是作者用 Inkwell 把自己项目的介绍文
+排了一遍版，顺手拿 gzh-design 的 `validate_gzh_html.py` 校验，结果 `ERROR ×2` 直接不通过；
+再 `cmp` 两个产出，本地版与发布版**逐字节相同**。
+
+### Fixed
+- **正文没有 `<span leaf="">`，过不了自己的校验器**：公众号编辑器只保留 leaf 内的文字样式，
+  漏包 → 粘贴后样式大面积丢失；`validate_gzh_html.py` 把这判为 ERROR。现在
+  `MarkdownProcessor` 会在生成骨架后统一给每个文本节点补包一层（`<style>/<script>/<title>`
+  内不包，已是 leaf 的不重复包），实测该文章 `span leaf 包裹: 438 处`、退出码 0
+- **输入图本来就是外链时，本地预览版等于没做**：`process_html()` 对 `http(s)/data:` 一律
+  原样返回且不记 `_local_map`，`to_local_preview()` 替换不到任何东西 —— 两版字节完全相同，
+  IDE 预览面板加载不了外网时满屏裂图。现在外链图会下载→压缩→base64 记入映射，
+  **发布版仍保留原外链**（公众号粘贴时会自己转存），本地版内嵌
+- **校验器把正文里的关键词当成 CSS**：文章正好在讲「`linear-gradient` 渐变会被丢掉」，
+  扫描器对全文做正则，于是把讲解内容实时命中。现在扫描前先剥掉文本节点（CSS 只可能出现在
+  标签名与属性值里）。同一问题在 Inkwell 自带校验器与 gzh-design 的
+  `validate_gzh_html.py` 里各修一处
+
+### Added
+- `run` 新增 `--no-embed-external`：不下载正文里的外链图（内网环境 / 不想出网时用）
+- `CopyCompatValidator` 增加遗漏检查：中文正文一个 `<span leaf="">` 都没有时给出警告
+- `PipelineResult` 新增 `external_embedded_images`；CLI 会打印
+  `[图片] 本地预览版已内嵌 N 张外链图`
+
+### Notes
+- 外链图下载失败 / 超限 / 解码失败**都不阻断流水线**，但告警带具体原因
+  （HTTP 404、超过 5 MB 上限、PIL 解码失败），本地版退回用外链并提示离线会裂图
+- 下载上限默认 5 MB，可用 `ImageProcessor(max_download_bytes=...)` 调整
+- 新增 25 条测试（197 条全绿）：`<span leaf="">` 包裹与幂等、属性不被破坏、
+  外链图双轨、下载失败降级（含用本地 HTTP 服务器真跑一次 urllib 下载）、
+  `--no-embed-external` 装配、校验器文本节点误报回归
+
 ## [0.8.0] - 2026-09-13
 
 **补齐公众号草稿箱链路。** 起因是验证 `publish --target wechat` 到底能不能用：用本地假微信

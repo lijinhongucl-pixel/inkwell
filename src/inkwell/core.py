@@ -30,6 +30,7 @@ class PipelineConfig:
     github_token: str | None = None  # 无 token 时跳过上传，降级 base64
     github_repo: str = ""  # 例：your-org/your-image-repo
     image_subdir: str = ""  # CDN 子目录
+    embed_external: bool = True  # 外链图下载内嵌进本地预览版（发布版始终保留原外链）
     emit_local_preview: bool = True  # 同时生成 base64 本地预览版
     strict_copy_compat: bool = True  # 严格校验公众号兼容性
 
@@ -39,6 +40,7 @@ class PipelineResult:
     publish_html: Path | None = None
     local_html: Path | None = None
     uploaded_images: list[str] = field(default_factory=list)
+    external_embedded_images: int = 0  # 成功内嵌进本地预览版的外链图数量
     compat_warnings: list[str] = field(default_factory=list)
     image_warnings: list[str] = field(default_factory=list)
 
@@ -56,6 +58,7 @@ class Pipeline:
             github_token=config.github_token,
             github_repo=config.github_repo,
             image_subdir=config.image_subdir,
+            embed_external=config.embed_external,
         )
         self.validator = CopyCompatValidator() if config.strict_copy_compat else None
 
@@ -64,13 +67,14 @@ class Pipeline:
         result = PipelineResult()
         md_text = self.config.input_md.read_text(encoding="utf-8")
 
-        # 1. Markdown → HTML 骨架
+        # 1. Markdown → HTML 骨架（文字节点已包 <span leaf="">）
         html = self.md_proc.convert(md_text)
 
         # 2. 处理图片：上传 + 替换为 CDN URL（失败自动降级为内嵌 base64）
         html, uploads = self.img_proc.process_html(html, base_dir=self.config.input_md.parent)
         result.uploaded_images = uploads
         result.image_warnings = list(self.img_proc.warnings)
+        result.external_embedded_images = len(self.img_proc.embedded_external)
 
         # 3. 生成发布版（CDN 外链）
         self.config.output_dir.mkdir(parents=True, exist_ok=True)
@@ -78,7 +82,7 @@ class Pipeline:
         publish_path.write_text(html, encoding="utf-8")
         result.publish_html = publish_path
 
-        # 4. 可选：生成 base64 本地预览版
+        # 4. 可选：生成 base64 本地预览版（外链图也会被内嵌，保证离线可看）
         if self.config.emit_local_preview:
             local_html = self.img_proc.to_local_preview(html)
             local_path = self.config.output_dir / f"{self.config.input_md.stem}_预览_本地版.html"

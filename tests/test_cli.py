@@ -78,3 +78,17 @@ class TestRunCdnWiring:
         args = cli.build_parser().parse_args(["run", "article.md", "--no-upload"])
         cli.cmd_run(args)
         assert captured_config["config"].github_token is None
+
+
+class TestRunExternalImageWiring:
+    """外链图内嵌开关必须能从 CLI 走到 PipelineConfig（装配层的缝最容易漏）"""
+
+    def test_embed_external_on_by_default(self, captured_config):
+        args = cli.build_parser().parse_args(["run", "article.md"])
+        cli.cmd_run(args)
+        assert captured_config["config"].embed_external is True
+
+    def test_no_embed_external_flag_reaches_config(self, captured_config):
+        args = cli.build_parser().parse_args(["run", "article.md", "--no-embed-external"])
+        cli.cmd_run(args)
+        assert captured_config["config"].embed_external is False

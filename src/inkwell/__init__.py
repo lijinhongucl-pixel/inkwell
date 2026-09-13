@@ -22,7 +22,7 @@ from .stats import ArticleAnalyzer, ArticleStats
 from .toc import Heading, TOCGenerator, TOCResult
 from .wordcheck import WordChecker, WordCheckReport, WordHit
 
-__version__ = "0.8.0"
+__version__ = "0.8.1"
 
 __all__ = [
     # 流水线核心

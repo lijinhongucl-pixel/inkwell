@@ -53,6 +53,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run.add_argument("--no-upload", action="store_true", help="跳过 CDN 上传（降级为 base64）")
     run.add_argument("--no-local-preview", action="store_true", help="不生成 base64 本地预览版")
+    run.add_argument(
+        "--no-embed-external",
+        action="store_true",
+        help="不把正文里的外链图下载内嵌进本地预览版（离线预览会裂图）",
+    )
     run.add_argument("--no-validate", action="store_true", help="跳过兼容性校验")
 
     # --- search ---
@@ -179,6 +184,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         github_repo=args.github_repo,
         cdn_base=args.cdn_base,
         github_token=os.getenv("GITHUB_TOKEN") if not args.no_upload else None,
+        embed_external=not args.no_embed_external,
         emit_local_preview=not args.no_local_preview,
         strict_copy_compat=not args.no_validate,
     )
@@ -190,6 +196,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         print(f"本地版: {result.local_html}")
     if result.uploaded_images:
         print(f"处理图片 {len(result.uploaded_images)} 张")
+    if result.external_embedded_images:
+        print(f"[图片] 本地预览版已内嵌 {result.external_embedded_images} 张外链图")
     if any(u.startswith("data:") for u in result.uploaded_images):
         cdn_ready = bool(args.github_repo and args.cdn_base and os.getenv("GITHUB_TOKEN"))
         if not cdn_ready:

@@ -4,7 +4,7 @@
 - 严禁 display:flex / grid / inline-block 自制图形
 - 用 <table> + <td width> 做并排布局
 - 圆点用 ● 字符，箭头用 →，分割线用 ———
-- 所有样式内联到 <span> 叶子节点
+- 所有样式内联，且文字节点一律包进 <span leaf="">（公众号只认 leaf 里的样式）
 - 中文只用「」引号
 
 内置 15 套排版主题，每套主题有独立色板和字体栈，共用同一套转换逻辑。
@@ -218,6 +218,16 @@ class MarkdownProcessor:
     支持 15 套主题，切换主题只改变色板和字体，转换逻辑完全共用。
     """
 
+    # ---------- <span leaf=""> 包裹 ----------
+    # 公众号编辑器粘贴后，只有落在 <span leaf=""> 里的文字才会保留内联样式；
+    # 正文一个 leaf 都没有 → 粘贴后样式大面积丢失（gzh-design 的
+    # validate_gzh_html.py 把这判为 ERROR）。所以生成后统一补包一层。
+    _TAG_SPLIT_RE = re.compile(r"(<[^>]+>)")
+    _TAG_NAME_RE = re.compile(r"</?\s*([a-zA-Z][\w-]*)")
+    _LEAF_TAG_RE = re.compile(r"<span\b[^>]*\bleaf\b", re.I)
+    # 这些区域里的文字不属于公众号正文，不能包（包进 <title> 还是非法 HTML）
+    _NO_LEAF_TAGS = frozenset({"style", "script", "title", "head"})
+
     def __init__(self, theme: str = "moyu-green") -> None:
         if theme not in THEMES:
             available = [t["id"] for t in THEME_META]
@@ -263,9 +273,53 @@ class MarkdownProcessor:
     def convert(self, md_text: str) -> str:
         """Markdown 字符串 → 完整 HTML 文件字符串"""
         body = self._md_to_inline_html(md_text)
+        # 正文文字节点统一包 <span leaf="">，保证粘贴到公众号后样式不丢
+        body = self._wrap_leaf(body)
         title = self._extract_title(md_text)
         head = TEMPLATE_HEAD.format(title=title, **self.c)
         return head + body + TEMPLATE_TAIL
+
+    @classmethod
+    def _wrap_leaf(cls, html: str) -> str:
+        """给正文里的每个文本节点包一层 ``<span leaf="">``
+
+        为什么必须包：公众号编辑器的粘贴逻辑只保留 ``<span leaf="">`` 内的文字样式，
+        未包裹的文字会掉成默认样式。gzh-design 的 ``validate_gzh_html.py``
+        直接把这判为 ERROR（「全文没有任何 <span leaf=""> 包裹」）。
+
+        实现要点：按标签切分字符串，只替换文本片段 —— 标签与属性原样透传，
+        不会重排属性顺序、不会改写引号（历史上引号替换曾把 ``style=""`` 变成 ``style=「」``）。
+        ``<style>/<script>/<title>/<head>`` 内的文本不包；已经是 leaf 的不重复包。
+        """
+        parts = cls._TAG_SPLIT_RE.split(html)
+        out: list[str] = []
+        skip_depth = 0  # 处于 style/script/title/head 内
+        leaf_depth = 0  # 处于既有 span leaf 内
+        for part in parts:
+            if not part:
+                continue
+            if part.startswith("<") and part.endswith(">"):
+                out.append(part)
+                m = cls._TAG_NAME_RE.match(part)
+                if not m:
+                    continue
+                tag = m.group(1).lower()
+                if part.startswith("</"):
+                    if tag in cls._NO_LEAF_TAGS and skip_depth:
+                        skip_depth -= 1
+                    if tag == "span" and leaf_depth:
+                        leaf_depth -= 1
+                elif not part.endswith("/>"):
+                    if tag in cls._NO_LEAF_TAGS:
+                        skip_depth += 1
+                    elif tag == "span" and cls._LEAF_TAG_RE.match(part):
+                        leaf_depth += 1
+                continue
+            if skip_depth or leaf_depth or not part.strip():
+                out.append(part)
+                continue
+            out.append(f'<span leaf="">{part}</span>')
+        return "".join(out)
 
     @staticmethod
     def list_themes() -> list[dict[str, str]]:

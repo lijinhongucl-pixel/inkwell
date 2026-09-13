@@ -13,7 +13,7 @@ Markdown → WeChat HTML → Magazine Cover → Social Cards → Publish.
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-multi--stage-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Version](https://img.shields.io/badge/version-0.8.0-green.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.8.1-green.svg)](./CHANGELOG.md)
 
 [English](#english) | [中文](#中文)
 
@@ -35,7 +35,7 @@ Markdown → WeChat HTML → Magazine Cover → Social Cards → Publish.
 | **第一次使用** | 一条 `inkwell run article.md`，产出的 HTML 可直接粘进编辑器 |
 | **不需要** | 美术功底、AI 生图 API；没装 Playwright 也照常出 HTML，只是跳过 PNG |
 | **和同类工具的差别** | doocs/md、mdnice 只解决「排版」一环，Inkwell 覆盖整条链路 |
-| **技术栈** | Python 3.11+ · Pillow · MIT · 172 条测试 · CI 三平台矩阵 |
+| **技术栈** | Python 3.11+ · Pillow · MIT · 197 条测试 · CI 三平台矩阵 |
 
 ---
 
@@ -193,6 +193,11 @@ inkwell validate output/article_preview.html
 > **关于两版产出**：`run` 会同时生成 `_预览.html`（发布版，图片走 CDN 外链，
 > 用于复制到公众号）和 `_预览_本地版.html`（图片内嵌 base64，用于 IDE 预览面板
 > 等加载不了外网的环境）。两版正文完全一致，只有图片承载方式不同。
+>
+> 正文图**本来就是外链**（比如你自己图床上的 `https://cdn.jsdelivr.net/...`）时，
+> 发布版保留原地址（公众号粘贴时会自己转存），同时会把图下载压缩后内嵌进本地版 ——
+> 否则本地版只会跟发布版逐字节相同，离线打开满屏裂图。加 `--no-embed-external`
+> 可关掉这个下载（内网环境或不想出网时用）。
 >
 > **要拿到 CDN 外链，三项配置缺一不可**：`GITHUB_TOKEN` 环境变量、
 > `--github-repo owner/repo`、`--cdn-base <外链前缀>`。缺任一项，图片都会降级为
@@ -384,6 +389,10 @@ inkwell advise --topic "10 个好工具" --type list --multi
 | `<svg>` 装饰 | CSS border 或字符 |
 | `data:image;base64` 内嵌图（发布版） | CDN 外链图片 |
 
+**必须做的一件事**：正文每个文字节点都要包在 `<span leaf="">` 里。公众号编辑器
+只保留 leaf 内的文字样式，漏包会导致粘贴后样式大面积丢失 —— 这是硬门槛而不是风格偏好，
+Inkwell 输出的每一段文字都会自动包裹。
+
 ### Agent 集成
 
 安装为 AI Agent 的 Skill：
@@ -437,7 +446,7 @@ inkwell/
 │   ├── screenshot.py         # Playwright HTML → PNG
 │   ├── design_audit.py       # 三门设计审计
 │   └── cover_advisor.py      # 封面设计建议
-├── tests/                    # 172 条测试
+├── tests/                    # 197 条测试
 ├── examples/  sample/        # 示例文章
 └── skill/                    # Agent Skill 定义
 ```
@@ -494,7 +503,7 @@ pushing the result to the clipboard or the WeChat draft box.
 | **First run** | One command — `inkwell run article.md` — and the HTML is ready to paste |
 | **Not required** | Design skills, an AI image API, or even Playwright (HTML still ships, PNG is skipped) |
 | **Versus others** | doocs/md and mdnice solve formatting only; Inkwell covers the whole chain |
-| **Stack** | Python 3.11+ · Pillow · MIT · 172 tests · CI matrix across three platforms |
+| **Stack** | Python 3.11+ · Pillow · MIT · 197 tests · CI matrix across three platforms |
 
 ### The Problem
 
@@ -598,6 +607,17 @@ inkwell publish output/article_preview.html --target clipboard
 >   --cdn-base https://cdn.jsdelivr.net/gh/your-name/your-image-repo@main
 > ```
 >
+> `run` writes two files: `_预览.html` (publish version — images as external CDN
+> URLs, for pasting into WeChat) and `_预览_本地版.html` (preview version — images
+> embedded as base64, for the IDE preview panel and other offline viewers). When an
+> image **already** points at an external URL, the publish version keeps that URL and
+> the image is downloaded and embedded into the local version — otherwise both files
+> would be byte-identical and the local preview would show broken images offline. Pass
+> `--no-embed-external` to skip those downloads.
+>
+> Every text node is wrapped in `<span leaf="">` — that is what makes the WeChat
+> editor keep the inline styles after pasting.
+>
 > ⚠️ An HTML file with inline base64 images should **not** be pasted into the WeChat
 > editor directly — the images turn into garbled text. Configure the CDN link above,
 > or open the file in a browser and select-all copy.
@@ -635,9 +655,9 @@ inkwell publish output/article_preview.html \
 
 | Module | Description |
 |--------|-------------|
-| `MarkdownProcessor` | Markdown → WeChat-compatible HTML (15 themes, inline styles) |
-| `ImageProcessor` | PIL compression + GitHub Contents API CDN upload, with base64 dual-track fallback |
-| `CopyCompatValidator` | Static scan for 6 banned clipboard patterns |
+| `MarkdownProcessor` | Markdown → WeChat-compatible HTML (15 themes, inline styles, `<span leaf="">` wrapping) |
+| `ImageProcessor` | PIL compression + GitHub Contents API CDN upload, with base64 dual-track fallback (external images are embedded into the local preview) |
+| `CopyCompatValidator` | Static scan for banned clipboard patterns + the `<span leaf="">` requirement |
 | `ContentSearcher` | GitHub API search + web/custom adapters |
 | `DraftGenerator` | 5 article style skeletons with search auto-fill |
 | `CoverGenerator` | Magazine cover (21:9 + 1:1, dark editorial style) |

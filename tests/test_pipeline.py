@@ -1,6 +1,11 @@
 """流水线基础测试"""
 
+import io
+import re
+from html.parser import HTMLParser
 from pathlib import Path
+
+from PIL import Image
 
 from inkwell.core import Pipeline, PipelineConfig
 from inkwell.processors.markdown_proc import MarkdownProcessor
@@ -115,6 +120,105 @@ class TestMarkdownProcessor:
         assert 'style="' in html
 
 
+class _LeafAudit(HTMLParser):
+    """复刻 gzh-design validate_gzh_html.py 的检查逻辑
+
+    该校验器把「中文文本节点不在 <span leaf=""> 内」判为问题，这里用同样的
+    规则审计 Inkwell 的产出，避免再出现「自己过不了自己校验器」的情况。
+    """
+
+    SKIP_TAGS = {"head", "title", "style", "script"}
+    CJK = re.compile(r"[\u4e00-\u9fff]")
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.stack: list[tuple[str, bool]] = []
+        self.leaf_depth = 0
+        self.leaf_count = 0
+        self.unwrapped: list[tuple[str, str]] = []
+
+    def handle_starttag(self, tag, attrs):
+        is_leaf = tag == "span" and "leaf" in dict(attrs)
+        if is_leaf:
+            self.leaf_count += 1
+            self.leaf_depth += 1
+        self.stack.append((tag, is_leaf))
+
+    def handle_endtag(self, tag):
+        for i in range(len(self.stack) - 1, -1, -1):
+            if self.stack[i][0] == tag:
+                for _, was_leaf in self.stack[i:]:
+                    if was_leaf:
+                        self.leaf_depth -= 1
+                del self.stack[i:]
+                break
+
+    def handle_data(self, data):
+        text = data.strip()
+        if not text or not self.CJK.search(text):
+            return
+        if any(t in self.SKIP_TAGS for t, _ in self.stack):
+            return
+        if self.leaf_depth == 0:
+            parent = self.stack[-1][0] if self.stack else "(root)"
+            self.unwrapped.append((text[:24], parent))
+
+    @classmethod
+    def run(cls, html: str) -> "_LeafAudit":
+        inst = cls()
+        inst.feed(html)
+        return inst
+
+
+class TestSpanLeafWrapping:
+    """文字节点必须落在 <span leaf=""> 里
+
+    公众号编辑器只保留 leaf 内的文字样式；漏包 → 粘贴后样式大面积丢失。
+    gzh-design 的 validate_gzh_html.py 直接把「全文无 span leaf」判为 ERROR，
+    所以这条不是风格偏好，而是硬门槛。
+    """
+
+    def test_all_cjk_text_wrapped(self):
+        html = MarkdownProcessor().convert(SAMPLE_MD)
+        audit = _LeafAudit.run(html)
+        assert audit.leaf_count > 0
+        assert audit.unwrapped == [], f"未包裹的文本: {audit.unwrapped}"
+
+    def test_title_not_wrapped(self):
+        """<title> 里出现 <span> 是非法 HTML，不能包"""
+        html = MarkdownProcessor().convert("# 测试标题\n\n正文。")
+        assert "<title>测试标题</title>" in html
+
+    def test_code_block_content_wrapped(self):
+        html = MarkdownProcessor().convert("```python\n# 中文注释\nprint(1)\n```")
+        audit = _LeafAudit.run(html)
+        assert audit.unwrapped == []
+
+    def test_span_leaf_not_nested_twice(self):
+        """幂等：已经是 leaf 的文本不再重复包"""
+        once = MarkdownProcessor._wrap_leaf('<p style="x">中文</p>')
+        twice = MarkdownProcessor._wrap_leaf(once)
+        assert once == twice
+        assert once.count('<span leaf="">') == 1
+
+    def test_attributes_untouched(self):
+        """包裹只动文本，标签与属性必须原样保留"""
+        html = MarkdownProcessor().convert("**粗体** 与 `code`")
+        assert '<strong style="color:' in html
+        assert '<code style="' in html
+        assert "style=「" not in html
+
+    def test_whitespace_only_not_wrapped(self):
+        assert MarkdownProcessor._wrap_leaf("  \n  ") == "  \n  "
+
+    def test_style_script_content_not_wrapped(self):
+        raw = "<style>.a{color:red}</style><script>var a=1;</script><p>正文</p>"
+        out = MarkdownProcessor._wrap_leaf(raw)
+        assert "<style>.a{color:red}</style>" in out
+        assert "<script>var a=1;</script>" in out
+        assert '<span leaf="">正文</span>' in out
+
+
 class TestCopyCompatValidator:
     def test_clean_html_passes(self, tmp_path):
         html_file = tmp_path / "test.html"
@@ -137,6 +241,51 @@ class TestCopyCompatValidator:
         warnings = v.scan(html_file)
         assert any("base64" in w for w in warnings)
 
+    def test_forbidden_word_in_body_text_not_flagged(self, tmp_path):
+        """回归：正文讲解「linear-gradient 会被丢掉」不该被当成自己用了渐变
+
+        扫描器早期对全文做正则，文章里只要出现这个关键词就误报。
+        扫描前剥掉文本节点即可（CSS 只可能出现在标签名/属性值里）。
+        """
+        html_file = tmp_path / "talk.html"
+        html_file.write_text(
+            '<p style="color:#333;"><span leaf="">'
+            "flex、grid、inline-block 和 linear-gradient 渐变在剪贴板里会被丢掉。"
+            "</span></p>",
+            encoding="utf-8",
+        )
+        v = CopyCompatValidator()
+        assert v.scan(html_file) == []
+
+    def test_real_linear_gradient_in_style_still_flagged(self, tmp_path):
+        html_file = tmp_path / "grad.html"
+        html_file.write_text(
+            '<p style="background:linear-gradient(#fff,#000);"><span leaf="">标题</span></p>',
+            encoding="utf-8",
+        )
+        v = CopyCompatValidator()
+        warnings = v.scan(html_file)
+        assert any("linear-gradient" in w for w in warnings)
+
+    def test_missing_span_leaf_flagged(self, tmp_path):
+        """中文正文一个 leaf 都没有 → 必须是警告（粘贴后样式会丢）"""
+        html_file = tmp_path / "noleaf.html"
+        html_file.write_text('<p style="color:#333;">中文正文</p>', encoding="utf-8")
+        v = CopyCompatValidator()
+        warnings = v.scan(html_file)
+        assert any("span leaf" in w for w in warnings)
+
+    def test_span_leaf_present_no_warning(self, tmp_path):
+        html_file = tmp_path / "leaf.html"
+        html_file.write_text('<p style="color:#333;"><span leaf="">中文正文</span></p>', encoding="utf-8")
+        assert CopyCompatValidator().scan(html_file) == []
+
+    def test_english_only_html_skips_leaf_check(self, tmp_path):
+        """纯英文片段不适用 leaf 规则，不该刷警告"""
+        html_file = tmp_path / "en.html"
+        html_file.write_text('<p style="color:#333;">hello world</p>', encoding="utf-8")
+        assert CopyCompatValidator().scan(html_file) == []
+
 
 class TestPipelineIntegration:
     def test_full_pipeline_produces_html(self, tmp_path):
@@ -155,6 +304,45 @@ class TestPipelineIntegration:
         assert result.publish_html.exists()
         # 兼容性校验应通过（无图片、无 flex）
         assert result.compat_warnings == []
+
+    def test_external_images_split_between_two_versions(self, tmp_path, monkeypatch):
+        """外链图：发布版留外链，本地版内嵌 base64
+
+        回归：两版字节完全相同（本地版失去意义，离线预览满屏裂图）。
+        """
+        from inkwell.processors.image_proc import ImageProcessor
+
+        buf = io.BytesIO()
+        Image.new("RGB", (1200, 800), (30, 58, 46)).save(buf, format="PNG")
+        monkeypatch.setattr(ImageProcessor, "_download_bytes", lambda self, url: buf.getvalue())
+
+        md_file = tmp_path / "ext.md"
+        md_file.write_text("# 标题\n\n![图](https://cdn.example.com/a.png)\n", encoding="utf-8")
+        result = Pipeline(PipelineConfig(input_md=md_file, output_dir=tmp_path / "out")).run()
+
+        assert result.publish_html is not None and result.local_html is not None
+        pub = result.publish_html.read_text(encoding="utf-8")
+        local = result.local_html.read_text(encoding="utf-8")
+        assert "https://cdn.example.com/a.png" in pub
+        assert "https://cdn.example.com/a.png" not in local
+        assert "data:image/jpeg;base64," in local
+        assert result.external_embedded_images == 1
+        assert pub != local
+        assert result.compat_warnings == []
+
+    def test_no_embed_external_keeps_local_version_identical(self, tmp_path, monkeypatch):
+        """关掉内嵌后，本地版对外链图无能为力 —— 这正是要保留的降级开关"""
+        from inkwell.processors.image_proc import ImageProcessor
+
+        called: list[str] = []
+        monkeypatch.setattr(ImageProcessor, "_download_bytes", lambda self, url: called.append(url) or b"")
+        md_file = tmp_path / "ext.md"
+        md_file.write_text("# 标题\n\n![图](https://cdn.example.com/a.png)\n", encoding="utf-8")
+        result = Pipeline(PipelineConfig(input_md=md_file, output_dir=tmp_path / "out", embed_external=False)).run()
+
+        assert called == []
+        assert result.external_embedded_images == 0
+        assert any("no-embed-external" in w for w in result.image_warnings)
 
 
 class TestNewThemes:

@@ -10,6 +10,10 @@
 
 from __future__ import annotations
 
+import io
+import threading
+from contextlib import contextmanager
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
@@ -26,6 +30,42 @@ from inkwell.publisher import Publisher
 def _make_image(path: Path, size: tuple[int, int] = (1200, 800)) -> Path:
     Image.new("RGB", size, (30, 58, 46)).save(path)
     return path
+
+
+def _png_bytes(size: tuple[int, int] = (1200, 800)) -> bytes:
+    """内存里的 PNG，用来假装从外链下载回来的图片"""
+    buf = io.BytesIO()
+    Image.new("RGB", size, (30, 58, 46)).save(buf, format="PNG")
+    return buf.getvalue()
+
+
+@contextmanager
+def _serve_image(payload: bytes):
+    """起一个本地 HTTP 服务器托管图片，返回可访问的 URL
+
+    真跑 urllib 那条下载路径（而不是 monkeypatch 掉），能顺带验证
+    UA 头、超时与 read 上限；不依赖外网，跑测试时也快。
+    """
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def log_message(self, *args):  # 静音
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}/a.png"
+    finally:
+        server.shutdown()
+        server.server_close()
 
 
 # ============================================================
@@ -68,16 +108,13 @@ class TestImageProcessorCompress:
 
 
 class TestProcessHtml:
-    def test_remote_url_untouched(self, tmp_path):
-        html = '<p><img src="https://cdn.example.com/a.png"></p>'
-        new, uploads = ImageProcessor().process_html(html, tmp_path)
-        assert new == html
-        assert uploads == []
-
-    def test_data_uri_untouched(self, tmp_path):
+    def test_data_uri_untouched_with_warning(self, tmp_path):
+        """base64 内嵌图原样保留，但要告警（公众号会过滤 data:image）"""
         html = '<img src="data:image/png;base64,AAAA">'
-        new, _ = ImageProcessor().process_html(html, tmp_path)
+        proc = ImageProcessor()
+        new, _ = proc.process_html(html, tmp_path)
         assert new == html
+        assert any("data:image" in w for w in proc.warnings)
 
     def test_plain_text_src_not_matched(self, tmp_path):
         """回归：早期用 src="..." 通配，会把 <script src> 之类也卷进来"""
@@ -133,6 +170,120 @@ class TestProcessHtml:
         assert new == '<img src="nope.png">'
         assert uploads == []
         assert len(proc.warnings) == 1
+
+    def test_corrupt_local_image_skipped_with_warning(self, tmp_path):
+        """文件存在但不是图片（下载中断/存成 HTML 错误页）→ 告警跳过，不崩"""
+        (tmp_path / "bad.png").write_text("not an image", encoding="utf-8")
+        proc = ImageProcessor()
+        new, uploads = proc.process_html('<img src="bad.png">', tmp_path)
+        assert new == '<img src="bad.png">'
+        assert uploads == []
+        assert any("压缩失败" in w for w in proc.warnings)
+
+
+class TestExternalImageEmbedding:
+    """回归：正文图本来就是外链时，本地预览版必须仍能内嵌
+
+    背景：process_html() 早期对 http(s) 一律原样返回且不记 _local_map，
+    to_local_preview() 就替换不到任何东西 —— 两个版本字节完全相同，
+    IDE 预览面板加载不了外网时满屏裂图，本地版等于没有。
+    """
+
+    def test_publish_keeps_url_local_embeds_base64(self, tmp_path, monkeypatch):
+        src = "https://cdn.example.com/a.png"
+        monkeypatch.setattr(ImageProcessor, "_download_bytes", lambda self, url: _png_bytes())
+        proc = ImageProcessor()
+        pub, uploads = proc.process_html(f'<img src="{src}">', tmp_path)
+
+        assert pub == f'<img src="{src}">'  # 发布版保留原外链
+        assert uploads == [src]  # 但计数里要看得见
+        assert proc.embedded_external == [src]
+
+        local = proc.to_local_preview(pub)
+        assert "data:image/jpeg;base64," in local
+        assert src not in local  # 整段替换，不留 URL 前缀
+
+    def test_download_failure_warns_with_reason(self, tmp_path, monkeypatch):
+        def boom(self, url):
+            raise OSError("HTTP Error 404: Not Found")
+
+        monkeypatch.setattr(ImageProcessor, "_download_bytes", boom)
+        proc = ImageProcessor()
+        src = "https://cdn.example.com/missing.png"
+        pub, _ = proc.process_html(f'<img src="{src}">', tmp_path)
+
+        assert pub == f'<img src="{src}">'  # 失败不阻断，发布版不受影响
+        assert len(proc.warnings) == 1
+        assert "404" in proc.warnings[0]  # 告警必须带具体原因
+        assert proc.to_local_preview(pub) == pub  # 没进 map，无从替换
+        assert proc.embedded_external == []
+
+    def test_embed_external_disabled_skips_download(self, tmp_path, monkeypatch):
+        called: list[str] = []
+        monkeypatch.setattr(ImageProcessor, "_download_bytes", lambda self, url: called.append(url) or b"")
+        proc = ImageProcessor(embed_external=False)
+        pub, _ = proc.process_html('<img src="https://cdn.example.com/a.png">', tmp_path)
+
+        assert called == []
+        assert any("no-embed-external" in w for w in proc.warnings)
+
+    def test_oversize_external_skipped(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(ImageProcessor, "_download_bytes", lambda self, url: b"x" * 2048)
+        proc = ImageProcessor(max_download_bytes=1024)
+        proc.process_html('<img src="https://cdn.example.com/big.png">', tmp_path)
+
+        assert proc.embedded_external == []
+        assert any("上限" in w for w in proc.warnings)
+
+    def test_non_image_external_skipped_with_reason(self, tmp_path, monkeypatch):
+        """外链下回来是 HTML 错误页时，要报「解码失败」而不是崩掉"""
+        monkeypatch.setattr(ImageProcessor, "_download_bytes", lambda self, url: b"<html>404</html>")
+        proc = ImageProcessor()
+        proc.process_html('<img src="https://cdn.example.com/fake.png">', tmp_path)
+
+        assert proc.embedded_external == []
+        assert any("解码失败" in w for w in proc.warnings)
+
+    def test_same_url_embedded_once(self, tmp_path, monkeypatch):
+        """同一张外链图出现多次，map 里只留一条，替换时一次覆盖全部"""
+        src = "https://cdn.example.com/a.png"
+        monkeypatch.setattr(ImageProcessor, "_download_bytes", lambda self, url: _png_bytes())
+        proc = ImageProcessor()
+        pub, uploads = proc.process_html(f'<img src="{src}"><img src="{src}">', tmp_path)
+
+        assert uploads == [src, src]
+        assert list(proc._local_map) == [src]
+        local = proc.to_local_preview(pub)
+        assert src not in local
+        assert local.count("data:image/jpeg;base64,") == 2
+
+
+class TestExternalDownloadOverHttp:
+    """真跑一次 urllib 下载（本地 HTTP 服务器），不 mock 网络层"""
+
+    def test_download_bytes_returns_payload(self):
+        payload = _png_bytes((40, 30))
+        with _serve_image(payload) as url:
+            assert ImageProcessor()._download_bytes(url) == payload
+
+    def test_read_is_capped_at_limit_plus_one(self):
+        """超限图只读上限 +1 字节就够判超限，不该把整个大文件拉下来"""
+        payload = b"x" * 5000
+        with _serve_image(payload) as url:
+            raw = ImageProcessor(max_download_bytes=1024)._download_bytes(url)
+        assert len(raw) == 1025
+
+    def test_end_to_end_external_image_embeds(self, tmp_path):
+        payload = _png_bytes((1200, 800))
+        with _serve_image(payload) as url:
+            proc = ImageProcessor()
+            pub, uploads = proc.process_html(f'<img src="{url}">', tmp_path)
+            local = proc.to_local_preview(pub)
+
+        assert uploads == [url]
+        assert url in pub
+        assert "data:image/jpeg;base64," in local
+        assert proc.warnings == []
 
 
 class TestLocalPreviewDualTrack:
