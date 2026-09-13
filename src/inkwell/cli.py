@@ -41,6 +41,16 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--quality", type=int, default=82, help="JPEG 质量 1-100")
     run.add_argument("--max-width", type=int, default=600, help="图片最大宽度")
     run.add_argument("--subdir", default="", help="CDN 子目录")
+    run.add_argument(
+        "--github-repo",
+        default=os.getenv("INKWELL_GITHUB_REPO", ""),
+        help="图片仓库 owner/repo（需与 --cdn-base、GITHUB_TOKEN 同时提供才会走 CDN 上传）",
+    )
+    run.add_argument(
+        "--cdn-base",
+        default=os.getenv("INKWELL_CDN_BASE", ""),
+        help="图片外链前缀，如 https://cdn.jsdelivr.net/gh/owner/repo@main",
+    )
     run.add_argument("--no-upload", action="store_true", help="跳过 CDN 上传（降级为 base64）")
     run.add_argument("--no-local-preview", action="store_true", help="不生成 base64 本地预览版")
     run.add_argument("--no-validate", action="store_true", help="跳过兼容性校验")
@@ -162,6 +172,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         image_quality=args.quality,
         image_max_width=args.max_width,
         image_subdir=args.subdir,
+        github_repo=args.github_repo,
+        cdn_base=args.cdn_base,
         github_token=os.getenv("GITHUB_TOKEN") if not args.no_upload else None,
         emit_local_preview=not args.no_local_preview,
         strict_copy_compat=not args.no_validate,
@@ -174,6 +186,13 @@ def cmd_run(args: argparse.Namespace) -> int:
         print(f"本地版: {result.local_html}")
     if result.uploaded_images:
         print(f"处理图片 {len(result.uploaded_images)} 张")
+    if any(u.startswith("data:") for u in result.uploaded_images):
+        cdn_ready = bool(args.github_repo and args.cdn_base and os.getenv("GITHUB_TOKEN"))
+        if not cdn_ready:
+            print(
+                "[提示] 图片以内嵌 base64 输出。要让发布版改用 CDN 外链，"
+                "请同时提供 --github-repo、--cdn-base 与 GITHUB_TOKEN 环境变量。"
+            )
     for w in result.image_warnings:
         print(f"[图片] {w}")
     for w in result.compat_warnings:

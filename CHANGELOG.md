@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.9] - 2026-09-13
+
+**修复 CLI 路径下 CDN 图片外链完全失效。** 起因是换陌生用户视角做验收：全新克隆、
+干净虚拟环境安装、逐条真跑 README 命令。结果发现 `run` 即使配好有效
+`GITHUB_TOKEN`，依然 100% 把图片降级成内嵌 base64。
+
+### Fixed
+- **CLI 漏传 CDN 配置，`run` 永远降级 base64**：`cli.py` 构造 `PipelineConfig` 时
+  只传了 `github_token`，`github_repo` 与 `cdn_base` 保持空字符串，而 `image_proc`
+  的上传判定是 `if token and repo` —— 判定恒为假。后果是发布版 `_预览.html` 里全
+  是 base64，且与 `_预览_本地版.html` **字节完全相同**，README 承诺的「发布版走
+  CDN 外链」在 CLI 路径下根本不成立
+- **`run` 新增 `--github-repo` 与 `--cdn-base`**：分别可用环境变量
+  `INKWELL_GITHUB_REPO` / `INKWELL_CDN_BASE` 兜底（Docker 场景无需改命令）
+- **配置不全时不再产出畸形外链**：`_upload` 用 `f"{cdn_base}/{path}"` 拼返回地址，
+  若只给 `github_repo` 而漏 `cdn_base`，会得到 `/pic.jpg` 这种畸形相对地址，粘进
+  公众号后图片全裂。现改为三项（token / repo / cdn_base）必须齐备才走上传，否则
+  降级 base64 并明确告警
+- **降级时给出可执行的启用指引**：`run` 输出含 base64 时，提示需要同时提供哪三项
+  配置才能改用 CDN 外链
+
+### Tests
+- 新增 `tests/test_cli.py`：锁死「CLI 参数 → `PipelineConfig`」这段装配。此前 CLI
+  层零测试覆盖，`build_parser` / `cmd_run` 从未被测试碰过，缺陷恰好藏在「层与层
+  之间的缝」里
+- `test_io_modules.py` 补 `TestCdnConfigGuard`：缺 `cdn_base` 或缺 `repo` 时必须
+  降级，且不得尝试上传
+
+### Verified
+- 真实端到端：对带图文章配齐三项跑 `run`，发布版输出真实 CDN URL（2 张），
+  本地版保留 base64（2 张），两版不再相同；上传的文件经 jsDelivr 请求返回
+  HTTP 200 且字节数与本地一致
+
 ## [0.7.8] - 2026-09-13
 
 **PyPI 发行名改为 `inkwell-press`。** 起因是准备对外介绍文案时去核对包名，

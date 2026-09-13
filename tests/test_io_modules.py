@@ -180,6 +180,53 @@ class TestLocalPreviewDualTrack:
         assert proc.to_local_preview(html) == html
 
 
+class TestCdnConfigGuard:
+    """CDN 配置不全时必须降级，绝不能产出畸形外链
+
+    回归背景：_upload 用 f"{cdn_base}/{path}" 拼返回地址，若 cdn_base 为空就会
+    得到 "/pic.jpg" 这种畸形相对地址，粘进公众号后图片全裂。所以「token+repo 齐备
+    但缺 cdn_base」应判定为不可用，而不是可用但地址是坏的。
+    """
+
+    def test_missing_cdn_base_does_not_upload(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+        _make_image(tmp_path / "pic.png")
+        calls: list[str] = []
+
+        def spy(self, data, filename):
+            calls.append(filename)
+            return f"/{filename}"  # 真被调用就会产出畸形地址
+
+        monkeypatch.setattr(ImageProcessor, "_upload", spy)
+        proc = ImageProcessor(github_token="fake-token", github_repo="me/repo", cdn_base="")
+        new, _ = proc.process_html('<img src="pic.png">', tmp_path)
+
+        assert calls == [], "缺 cdn_base 时不应尝试上传"
+        assert "data:image/jpeg;base64," in new
+        assert 'src="/pic.png"' not in new
+        assert any("cdn_base" in w for w in proc.warnings)
+
+    def test_missing_repo_does_not_upload(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
+        _make_image(tmp_path / "pic.png")
+        calls: list[str] = []
+
+        def spy(self, data, filename):
+            calls.append(filename)
+            return "https://cdn.example.com/img/x.png"
+
+        monkeypatch.setattr(ImageProcessor, "_upload", spy)
+        proc = ImageProcessor(
+            github_token="fake-token",
+            github_repo="",
+            cdn_base="https://cdn.example.com/img",
+        )
+        new, _ = proc.process_html('<img src="pic.png">', tmp_path)
+
+        assert calls == []
+        assert "data:image/jpeg;base64," in new
+
+
 # ============================================================
 # Publisher
 # ============================================================

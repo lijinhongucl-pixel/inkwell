@@ -11,7 +11,7 @@ Markdown → WeChat HTML → Magazine Cover → Social Cards → Publish.
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-multi--stage-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Version](https://img.shields.io/badge/version-0.7.8-green.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.7.9-green.svg)](./CHANGELOG.md)
 
 [English](#english) | [中文](#中文)
 
@@ -172,6 +172,21 @@ inkwell validate output/article_preview.html
 > **关于两版产出**：`run` 会同时生成 `_预览.html`（发布版，图片走 CDN 外链，
 > 用于复制到公众号）和 `_预览_本地版.html`（图片内嵌 base64，用于 IDE 预览面板
 > 等加载不了外网的环境）。两版正文完全一致，只有图片承载方式不同。
+>
+> **要拿到 CDN 外链，三项配置缺一不可**：`GITHUB_TOKEN` 环境变量、
+> `--github-repo owner/repo`、`--cdn-base <外链前缀>`。缺任一项，图片都会降级为
+> 内嵌 base64（此时两版内容相同），命令行会直接提示你还缺什么。
+>
+> ```bash
+> export GITHUB_TOKEN=ghp_xxx
+> inkwell run article.md \
+>   --github-repo your-name/your-image-repo \
+>   --cdn-base https://cdn.jsdelivr.net/gh/your-name/your-image-repo@main \
+>   --subdir my-article
+> ```
+>
+> ⚠️ 含内嵌 base64 的 HTML **不要直接粘进公众号编辑器**——图片会变乱码。请按上面的
+> 方式配好外链，或在浏览器里打开该 HTML 全选复制。
 
 > **平台支持（重要）**：`--target clipboard` 写入**富文本**依赖系统能力 ——
 > macOS 走 AppleScript 写入 `«class HTML»` flavor；Linux 走 `xclip`
@@ -504,6 +519,23 @@ inkwell card --platform xhs --style editorial --pages 3 -o ./cards/ --png
 # Publish to clipboard or WeChat draft
 inkwell publish output/article_preview.html --target clipboard
 ```
+
+> **Getting CDN image links**: `run` needs all three — the `GITHUB_TOKEN`
+> environment variable, `--github-repo owner/repo`, and `--cdn-base <prefix>` — to
+> upload images and emit external URLs. If any one is missing, images fall back to
+> inline base64 (and the two output files become identical); the CLI tells you what
+> is missing.
+>
+> ```bash
+> export GITHUB_TOKEN=ghp_xxx
+> inkwell run article.md \
+>   --github-repo your-name/your-image-repo \
+>   --cdn-base https://cdn.jsdelivr.net/gh/your-name/your-image-repo@main
+> ```
+>
+> ⚠️ An HTML file with inline base64 images should **not** be pasted into the WeChat
+> editor directly — the images turn into garbled text. Configure the CDN link above,
+> or open the file in a browser and select-all copy.
 
 ### Modules
 

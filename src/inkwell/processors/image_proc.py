@@ -55,6 +55,14 @@ class ImageProcessor:
         self._local_map.clear()
         self.warnings.clear()
 
+        # CDN 三项（token / repo / cdn_base）必须齐备。若只给 token+repo 而缺
+        # cdn_base，_upload 会返回 "/path" 这种畸形相对地址，粘进公众号图全裂 ——
+        # 所以此处直接判定为不可用。只预告警一次，避免逐图重复刷屏。
+        if self.token and self.repo and not self.cdn_base:
+            self._warn(
+                "已提供 GITHUB_TOKEN 与 github_repo，但缺少 cdn_base，无法生成可访问的图片外链，已降级为内嵌 base64"
+            )
+
         def repl(m: re.Match) -> str:
             prefix, src, suffix = m.group(1), m.group(2), m.group(3)
             if src.startswith(("http://", "https://", "data:")):
@@ -71,7 +79,7 @@ class ImageProcessor:
 
             data_uri = self._to_data_uri(compressed)
 
-            if self.token and self.repo:
+            if self.token and self.repo and self.cdn_base:
                 try:
                     cdn_url = self._upload(compressed, local.name)
                 except Exception as e:  # noqa: BLE001

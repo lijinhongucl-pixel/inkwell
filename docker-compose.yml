@@ -11,8 +11,11 @@ services:
       # 产出的 HTML / PNG 写这里
       - ./output:/app/output
     environment:
-      # 需要 CDN 上传时在宿主机 export GITHUB_TOKEN，或改用 --env-file .env
+      # CDN 上传需要三项齐备：token + 图片仓库 + 外链前缀
+      # 在宿主机 export 这三个变量即可，或改用 --env-file .env
       - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - INKWELL_GITHUB_REPO=${INKWELL_GITHUB_REPO:-}
+      - INKWELL_CDN_BASE=${INKWELL_CDN_BASE:-}
     # 默认显示帮助；实际用法见 README
     command: ["--help"]
     # 非 root 用户运行（与 Dockerfile 中的 appuser 一致）
