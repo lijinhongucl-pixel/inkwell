@@ -1,7 +1,7 @@
 ---
 name: inkwell
 description: 全链路视觉内容工具。Markdown 转公众号 HTML、杂志封面生成、小红书社交卡片、封面设计建议、设计质量审计、选题搜索、草稿自动生成、敏感词检测、字数统计、目录生成。当用户需要写推文、排版文章、做封面、出小红书图、搜索选题、生成草稿、审计设计质量、检查合规时触发。触发词：写推文、排版、公众号文章、做封面、出封面图、小红书图文、社交卡片、内容搜索、选题灵感、生成草稿、Markdown 转换、设计审计、敏感词检测、字数统计、目录生成。
-version: 0.7.9
+version: 0.8.0
 ---
 
 # inkwell Skill
@@ -23,7 +23,7 @@ version: 0.7.9
 | `stats` | 字数统计 + 阅读时间 + 结构分析 |
 | `toc` | 自动生成文章目录卡片（H2/H3 提取 + 编号） |
 | `validate` | 检查 HTML 是否有公众号禁忌写法 |
-| `publish` | 发布内容（富文本写入剪贴板 / 公众号草稿箱） |
+| `publish` | 发布内容（富文本写入剪贴板 / 公众号草稿箱，封面与正文图自动转存微信图床） |
 | `themes` | 列出所有排版主题 |
 
 ## 工作流
@@ -66,6 +66,13 @@ version: 0.7.9
 
 1. `inkwell toc article.md --theme moyu-green -o toc.html`
 2. 把 toc.html 的 `<table>` 部分粘贴到文章开头
+
+### 场景七：用户要把文章推进公众号草稿箱
+
+1. `export WECHAT_APP_ID=... WECHAT_APP_SECRET=...`（服务号，且出口 IP 需在白名单）
+2. `inkwell publish ./output/xxx_预览.html --target wechat --title "标题" --thumb-image ./covers/cover_01_21x9.png`
+   - 正文图片会逐张转存到微信图床（外链图会被微信过滤，必须走这一步）
+   - 输出里若出现「第 N 张图片…缺失」告警，草稿里那几张图会缺，需要补齐后重推
 
 ## 主题选择指南
 

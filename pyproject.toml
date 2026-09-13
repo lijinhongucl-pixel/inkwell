@@ -1,6 +1,6 @@
 [project]
 name = "inkwell-press"
-version = "0.7.9"
+version = "0.8.0"
 description = "Markdown → WeChat HTML → Magazine Cover → Social Cards → Publish. One command, full pipeline."
 readme = "README.md"
 license = {text = "MIT"}

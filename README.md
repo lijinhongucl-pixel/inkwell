@@ -13,7 +13,7 @@ Markdown → WeChat HTML → Magazine Cover → Social Cards → Publish.
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-multi--stage-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Version](https://img.shields.io/badge/version-0.7.9-green.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.8.0-green.svg)](./CHANGELOG.md)
 
 [English](#english) | [中文](#中文)
 
@@ -35,7 +35,7 @@ Markdown → WeChat HTML → Magazine Cover → Social Cards → Publish.
 | **第一次使用** | 一条 `inkwell run article.md`，产出的 HTML 可直接粘进编辑器 |
 | **不需要** | 美术功底、AI 生图 API；没装 Playwright 也照常出 HTML，只是跳过 PNG |
 | **和同类工具的差别** | doocs/md、mdnice 只解决「排版」一环，Inkwell 覆盖整条链路 |
-| **技术栈** | Python 3.11+ · Pillow · MIT · 151 条测试 · CI 三平台矩阵 |
+| **技术栈** | Python 3.11+ · Pillow · MIT · 172 条测试 · CI 三平台矩阵 |
 
 ---
 
@@ -181,9 +181,10 @@ inkwell card \
 # 发布到剪贴板（以富文本写入，粘贴到公众号即为排版后的效果）
 inkwell publish output/article_preview.html --target clipboard
 
-# 发布到公众号草稿箱（需配置 APP_ID / APP_SECRET，封面需先上传拿到 media_id）
+# 发布到公众号草稿箱（正文图与封面自动转存微信图床，详见下面「发布到公众号草稿箱」）
 inkwell publish output/article_preview.html \
-  --target wechat --title "文章标题" --author "作者" --thumb <封面 media_id>
+  --target wechat --title "文章标题" --author "作者" \
+  --thumb-image ./covers/cover_01_21x9.png
 
 # 只做兼容性校验
 inkwell validate output/article_preview.html
@@ -215,6 +216,33 @@ inkwell validate output/article_preview.html
 > Windows 用户请改为在浏览器打开 `_预览.html` → 全选 → 复制。
 > 其余功能（排版、封面、社交卡片、兼容性校验、字数统计）三平台行为一致。
 
+
+### 发布到公众号草稿箱
+
+`--target wechat` 会把文章直接推进公众号草稿箱，**正文图片与封面都会自动转存到微信图床**，
+不需要你手工处理图片：
+
+```bash
+export WECHAT_APP_ID=wx****************
+export WECHAT_APP_SECRET=****************
+
+inkwell publish output/article_预览.html \
+  --target wechat \
+  --title "文章标题" --author "作者" \
+  --thumb-image ./covers/cover_01_21x9.png \
+  --digest "一句话摘要"
+```
+
+- **正文图片**：本地相对路径、CDN 外链、base64 内嵌都支持，会逐张调 `media/uploadimg`
+  换成微信图床 URL。这一步不能省 —— 微信会把 `content` 里的**外部图片 url 直接过滤掉**，
+  所以「发布版 HTML 里是 CDN 外链」并不等于可以直接推草稿
+- **封面**：`--thumb-image <本地图>` 会自动调 `material/add_material` 换永久素材
+  `media_id`；已经有素材 id 的话用 `--thumb <media_id>`
+- **长度提前校验**：标题 ≤32 字、作者 ≤16 字、摘要 ≤128 字，超了在本地就报错，不发请求
+- **前置条件**：草稿箱接口**只有服务号能调**（订阅号没有该权限）；调用方的**出口 IP 必须
+  加入公众号后台的 IP 白名单**，否则取 token 时报 40164
+- 某张图转存失败**不会中断推送**，但会在输出里逐条告警 —— 那几张图在草稿里会缺失，
+  请按告警补齐后重推
 
 ### Docker
 
@@ -409,7 +437,7 @@ inkwell/
 │   ├── screenshot.py         # Playwright HTML → PNG
 │   ├── design_audit.py       # 三门设计审计
 │   └── cover_advisor.py      # 封面设计建议
-├── tests/                    # 151 条测试
+├── tests/                    # 172 条测试
 ├── examples/  sample/        # 示例文章
 └── skill/                    # Agent Skill 定义
 ```
@@ -466,7 +494,7 @@ pushing the result to the clipboard or the WeChat draft box.
 | **First run** | One command — `inkwell run article.md` — and the HTML is ready to paste |
 | **Not required** | Design skills, an AI image API, or even Playwright (HTML still ships, PNG is skipped) |
 | **Versus others** | doocs/md and mdnice solve formatting only; Inkwell covers the whole chain |
-| **Stack** | Python 3.11+ · Pillow · MIT · 151 tests · CI matrix across three platforms |
+| **Stack** | Python 3.11+ · Pillow · MIT · 172 tests · CI matrix across three platforms |
 
 ### The Problem
 
@@ -573,6 +601,35 @@ inkwell publish output/article_preview.html --target clipboard
 > ⚠️ An HTML file with inline base64 images should **not** be pasted into the WeChat
 > editor directly — the images turn into garbled text. Configure the CDN link above,
 > or open the file in a browser and select-all copy.
+
+### Publishing to the WeChat draft box
+
+`--target wechat` pushes the article straight into the WeChat draft box, and **both the
+in-article images and the cover are moved onto WeChat's own image host automatically**:
+
+```bash
+export WECHAT_APP_ID=wx****************
+export WECHAT_APP_SECRET=****************
+
+inkwell publish output/article_preview.html \
+  --target wechat \
+  --title "Title" --author "Author" \
+  --thumb-image ./covers/cover_01_21x9.png \
+  --digest "One-line summary"
+```
+
+- **In-article images** — local paths, CDN URLs and inline base64 all work: each image goes
+  through `media/uploadimg` and its `src` is swapped for a WeChat-hosted URL. This step is
+  mandatory, because WeChat **filters out external image URLs** inside `content`
+- **Cover** — `--thumb-image <local file>` uploads it via `material/add_material` and uses the
+  returned permanent `media_id`; use `--thumb <media_id>` if you already have one
+- **Limits checked up front** — title ≤32 characters, author ≤16, digest ≤128; violations fail
+  locally without spending an API call
+- **Requirements** — the draft API is only available to **service accounts** (subscription
+  accounts have no access), and the caller's **egress IP must be whitelisted** in the WeChat
+  console, otherwise the token call fails with 40164
+- A failed image transfer **does not abort the push**, but every failure is reported as a
+  warning — those images will be missing from the draft
 
 ### Modules
 

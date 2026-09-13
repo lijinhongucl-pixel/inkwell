@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-09-13
+
+**补齐公众号草稿箱链路。** 起因是验证 `publish --target wechat` 到底能不能用：用本地假微信
+服务器接管全部出网请求后发现，请求装配与错误处理本身是对的，但**正文图片这一步根本不存在** ——
+而微信官方文档明确写着 `content` 里「涉及图片 url 必须来源『上传图文消息内的图片获取 URL』
+接口获取。外部图片 url 将被过滤」。也就是说带图文章推过去会丢图，且我们自己的两版产出
+（CDN 外链版 / base64 内嵌版）微信都不认。
+
+### Added
+- **正文图片自动转存微信图床**：新增 `media/uploadimg` 调用，逐张把 `<img src>` 换成
+  `mmbiz.qpic.cn` 地址后再建草稿。三类 src 都支持：本地相对/绝对路径、http(s) 外链、
+  base64 内嵌；非 jpg/png（gif/webp）会先用 Pillow 转 JPEG —— 微信只收 jpg/png
+- **封面自动上传**：`publish` 新增 `--thumb-image <本地图>`，自动调 `material/add_material`
+  拿永久素材 `thumb_media_id`；已有素材的场景仍用 `--thumb <media_id>`
+- **`publish` 新增 `--digest`**：摘要可选，留空时交给微信自动抓正文前 54 字
+- **长度提前校验**：标题 ≤32 字、作者 ≤16 字、摘要 ≤128 字、正文 >2 万字符告警 ——
+  全部按微信硬性上限在本地拦，不再等被接口拒绝
+
+### Changed
+- 本地可判定的问题（缺凭证 / 长度超限 / 缺封面）**前移到取 access_token 之前**，
+  不再白花一次 API 调用
+- `access_token` 失败时把微信原始 `errcode/errmsg` 带出来 —— 40164（IP 不在白名单）
+  以前只会显示「请检查 AppID/AppSecret」，会把人往错方向引
+- `PublishResult` 新增 `images_total` / `images_transferred` / `warnings`；CLI 会打印
+  `正文图片: 2/2 张已转存到微信图床`，并逐条列出告警
+- 图片转存失败的告警带上**具体原因**（下载 404 / 文件不存在 / 格式不受支持）——
+  端到端复验时就吃过这个亏：只报「读取失败」分不清该换图床、修路径还是换格式
+
+### Notes
+- 单张图转存失败**不阻断推送**（与流水线既有的降级策略一致），但会逐条告警说明草稿里会缺图
+- 新增 `tests/test_publisher_wechat.py`（21 个用例），用假 urlopen 断言请求形态与载荷字段，
+  整套用例不碰真实微信接口
+
 ## [0.7.9] - 2026-09-13
 
 **修复 CLI 路径下 CDN 图片外链完全失效。** 起因是换陌生用户视角做验收：全新克隆、

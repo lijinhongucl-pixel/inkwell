@@ -12,7 +12,9 @@
 
 from __future__ import annotations
 
+import base64
 import html as html_lib
+import io
 import json
 import os
 import re
@@ -22,7 +24,8 @@ import sys
 import tempfile
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass
+import uuid
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -35,6 +38,9 @@ class PublishResult:
     message: str
     media_id: str = ""  # 微信返回的 media_id
     article_url: str = ""  # 微信文章 URL
+    images_total: int = 0  # 正文里待转存的图片数
+    images_transferred: int = 0  # 成功转存到微信图床的图片数
+    warnings: list[str] = field(default_factory=list)
 
 
 class Publisher:
@@ -45,6 +51,18 @@ class Publisher:
     """
 
     WECHAT_API_BASE = "https://api.weixin.qq.com/cgi-bin"
+
+    # 微信 draft/add 的硬性上限（官方文档），超了会被接口拒绝，提前拦更友好
+    TITLE_MAX = 32
+    AUTHOR_MAX = 16
+    DIGEST_MAX = 128
+    CONTENT_MAX = 20000
+
+    IMG_TAG_RE = re.compile(r"<img\b[^>]*>", re.IGNORECASE)
+    IMG_SRC_RE = re.compile(r"""\bsrc\s*=\s*("([^"]*)"|'([^']*)')""", re.IGNORECASE)
+
+    def __init__(self) -> None:
+        self.last_token_error = ""
 
     # ---------- 剪贴板模式 ----------
     def publish_to_clipboard(self, html_path: Path) -> PublishResult:
@@ -175,63 +193,95 @@ class Publisher:
         thumb_media_id: str = "",
         author: str = "",
         digest: str = "",
+        thumb_image: Path | None = None,
     ) -> PublishResult:
         """推送文章到公众号草稿箱
 
         需要先获取 access_token（通过 AppID + AppSecret）。
         环境变量 WECHAT_APP_ID + WECHAT_APP_SECRET 自动读取。
 
-        流程：
-        1. 获取 access_token
-        2. 上传封面图（如有 thumb_media_id 跳过）
-        3. 新增草稿 → 返回 media_id
+        微信侧实际有四道闸门，顺序不能错：
+        1. 本地校验：标题/作者/摘要长度、封面来源（不通过就不发任何请求）
+        2. 获取 access_token
+        3. 封面：给了 thumb_image 就调 material/add_material 换成永久素材 media_id
+        4. 正文图：逐张调 media/uploadimg 换成微信图床 URL（外链会被微信过滤掉）
+        5. 新增草稿 → 返回 media_id
         """
         app_id = os.getenv("WECHAT_APP_ID", "")
         app_secret = os.getenv("WECHAT_APP_SECRET", "")
 
+        # 1. 本地就能判定的问题先拦掉，不白花一次 token 调用
         if not app_id or not app_secret:
             return PublishResult(
                 success=False,
                 platform="wechat",
                 message=("缺少 WECHAT_APP_ID 或 WECHAT_APP_SECRET 环境变量。请在公众号后台 → 开发 → 基本配置获取。"),
             )
-
-        # 1. 获取 access_token
-        token = self._get_access_token(app_id, app_secret)
-        if not token:
-            return PublishResult(
-                success=False,
-                platform="wechat",
-                message="获取 access_token 失败，请检查 AppID/AppSecret",
-            )
-
-        # 2. 读取 HTML 内容
-        html = html_path.read_text(encoding="utf-8")
-        body = self._extract_section(html) or html
-
-        # 3. 校验必需参数：微信草稿接口要求 thumb_media_id 是已上传素材的
-        #    media_id，传占位字符串会被拒（errcode 40007），不如提前报错
-        if not thumb_media_id:
+        problem = self._validate_lengths(title, author, digest)
+        if problem:
+            return PublishResult(success=False, platform="wechat", message=problem)
+        if not thumb_media_id and thumb_image is None:
             return PublishResult(
                 success=False,
                 platform="wechat",
                 message=(
-                    "缺少 --thumb（封面图 media_id）。公众号草稿接口要求封面为"
-                    "已上传的永久素材，请先在公众号后台或素材接口上传封面图后传入。"
+                    "缺少封面。公众号草稿接口要求封面为已上传的永久素材，"
+                    "请用 --thumb-image <本地图片路径> 自动上传，或先用 --thumb 传入已有 media_id。"
                 ),
             )
 
-        # 4. 新增草稿
+        # 2. 获取 access_token
+        token = self._get_access_token(app_id, app_secret)
+        if not token:
+            detail = self.last_token_error or "检查 AppID/AppSecret 是否正确、调用方出口 IP 是否已加入白名单"
+            return PublishResult(
+                success=False,
+                platform="wechat",
+                message=f"获取 access_token 失败: {detail}",
+            )
+
+        warnings: list[str] = []
+
+        # 3. 封面：本地图自动上传成永久素材
+        if not thumb_media_id and thumb_image is not None:
+            data, filename, ctype, why = self._load_image(str(thumb_image), None)
+            if data is None:
+                return PublishResult(
+                    success=False,
+                    platform="wechat",
+                    message=f"封面图读取失败（{why}）: {thumb_image}",
+                )
+            url = f"{self.WECHAT_API_BASE}/material/add_material?type=image&access_token={token}"
+            resp = self._post_multipart(url, "media", filename, data, ctype)
+            thumb_media_id = resp.get("media_id", "")
+            if not thumb_media_id:
+                return PublishResult(
+                    success=False,
+                    platform="wechat",
+                    message=f"封面上传失败: {self._api_error(resp) or '接口无响应'}",
+                )
+
+        # 4. 正文：提取 <section> 后把图逐张转存到微信图床
+        html = html_path.read_text(encoding="utf-8")
+        body = self._extract_section(html) or html
+        body, images_total, images_transferred, img_warnings = self._transfer_images(body, html_path.parent, token)
+        warnings.extend(img_warnings)
+        if len(body) > self.CONTENT_MAX:
+            warnings.append(f"正文 {len(body)} 字符，超过微信上限 {self.CONTENT_MAX}，接口可能直接拒绝")
+
+        # 5. 新增草稿
         draft_url = f"{self.WECHAT_API_BASE}/draft/add?access_token={token}"
-        article = {
+        article: dict = {
             "title": title,
             "author": author,
-            "digest": digest or title,
             "content": body,
             "thumb_media_id": thumb_media_id,
             "need_open_comment": 0,
             "only_fans_can_comment": 0,
         }
+        # digest 留空时微信会自己抓正文前 54 字，比塞标题更合适
+        if digest:
+            article["digest"] = digest
         payload = json.dumps({"articles": [article]}).encode("utf-8")
         req = urllib.request.Request(
             draft_url,
@@ -239,25 +289,167 @@ class Publisher:
             method="POST",
             headers={"Content-Type": "application/json"},
         )
+        counts = {"images_total": images_total, "images_transferred": images_transferred, "warnings": warnings}
         try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=15) as resp:
                 data = json.loads(resp.read())
-            if "media_id" in data:
-                return PublishResult(
-                    success=True,
-                    platform="wechat",
-                    message="草稿已推送到公众号草稿箱",
-                    media_id=data["media_id"],
-                )
+        except Exception as e:  # noqa: BLE001
+            return PublishResult(success=False, platform="wechat", message=f"调用草稿接口失败: {e}", **counts)
+        if "media_id" not in data:
             return PublishResult(
                 success=False,
                 platform="wechat",
-                message=(f"API 返回错误: errcode={data.get('errcode')} errmsg={data.get('errmsg')}"),
+                message=f"API 返回错误: {self._api_error(data)}",
+                **counts,
             )
-        except Exception as e:  # noqa: BLE001
-            return PublishResult(success=False, platform="wechat", message=str(e))
+        message = "草稿已推送到公众号草稿箱"
+        if images_total:
+            message += f"（正文图片 {images_transferred}/{images_total} 张已转存到微信图床）"
+        return PublishResult(success=True, platform="wechat", message=message, media_id=data["media_id"], **counts)
 
-    # ---------- 内部 ----------
+    # ---------- 微信内部 ----------
+    @staticmethod
+    def _api_error(data: dict) -> str:
+        """把微信的错误响应压成一行，便于 CLI 直接展示"""
+        if not data:
+            return ""
+        return f"errcode={data.get('errcode')} errmsg={data.get('errmsg')}"
+
+    @classmethod
+    def _validate_lengths(cls, title: str, author: str, digest: str) -> str:
+        """微信对这几个字段有硬性字数上限，超了会被拒 —— 本地先拦"""
+        if not title:
+            return "标题不能为空（微信草稿接口要求 title 必填）"
+        if len(title) > cls.TITLE_MAX:
+            return f"标题 {len(title)} 字，超过微信上限 {cls.TITLE_MAX} 字"
+        if len(author) > cls.AUTHOR_MAX:
+            return f"作者 {len(author)} 字，超过微信上限 {cls.AUTHOR_MAX} 字"
+        if len(digest) > cls.DIGEST_MAX:
+            return f"摘要 {len(digest)} 字，超过微信上限 {cls.DIGEST_MAX} 字"
+        return ""
+
+    @classmethod
+    def _load_image(cls, src: str, base_dir: Path | None) -> tuple[bytes | None, str, str, str]:
+        """按 src 取到图片字节并归一成微信接受的 jpg/png
+
+        返回 (数据, 文件名, 内容类型, 失败原因)，失败时数据为 None。
+        原因必须带出去 —— 只报「读取失败」分不清是 404、超时还是格式不对，
+        而处理办法完全不同（换图床 / 加白名单 / 换格式）。
+
+        支持三类 src：base64 内嵌、http(s) 外链、本地相对/绝对路径。
+        """
+        raw: bytes | None = None
+        why = ""
+        if src.startswith("data:"):
+            b64 = src.partition(",")[2]
+            try:
+                raw = base64.b64decode(b64 + "=" * (-len(b64) % 4))
+            except (ValueError, TypeError) as e:
+                why = f"base64 解码失败: {e}"
+        elif src.startswith(("http://", "https://")):
+            try:
+                req = urllib.request.Request(src, headers={"User-Agent": "inkwell"})
+                with urllib.request.urlopen(req, timeout=20) as resp:
+                    raw = resp.read()
+            except Exception as e:  # noqa: BLE001
+                why = f"下载失败 {type(e).__name__}: {e}"
+        elif src:
+            path = Path(src)
+            if not path.is_absolute() and base_dir is not None:
+                path = base_dir / src
+            if not path.exists():
+                why = f"文件不存在: {path}"
+            else:
+                try:
+                    raw = path.read_bytes()
+                except OSError as e:
+                    why = f"读取失败: {e}"
+        else:
+            why = "src 为空"
+        if not raw:
+            return None, "", "", why or "内容为空"
+        normalized = cls._normalize_image(raw)
+        if normalized is None:
+            return None, "", "", "格式不受支持（微信只收 jpg/png，转码也失败）"
+        data, filename, ctype = normalized
+        return data, filename, ctype, ""
+
+    @staticmethod
+    def _normalize_image(raw: bytes) -> tuple[bytes, str, str] | None:
+        """微信 uploadimg 只吃 jpg/png：按魔术字节判断，必要时用 Pillow 转 JPEG"""
+        if raw[:3] == b"\xff\xd8\xff":
+            return raw, "image.jpg", "image/jpeg"
+        if raw[:8] == b"\x89PNG\r\n\x1a\n":
+            return raw, "image.png", "image/png"
+        try:
+            from PIL import Image
+
+            with Image.open(io.BytesIO(raw)) as im:
+                buf = io.BytesIO()
+                im.convert("RGB").save(buf, format="JPEG", quality=88, optimize=True)
+            return buf.getvalue(), "image.jpg", "image/jpeg"
+        except Exception:  # noqa: BLE001
+            return None
+
+    @staticmethod
+    def _post_multipart(url: str, field: str, filename: str, data: bytes, ctype: str) -> dict:
+        """构造 multipart/form-data 上传（手写，不引入额外依赖）"""
+        boundary = f"----inkwell{uuid.uuid4().hex}"
+        head = (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="{field}"; filename="{filename}"\r\n'
+            f"Content-Type: {ctype}\r\n\r\n"
+        ).encode()
+        body = head + data + f"\r\n--{boundary}--\r\n".encode()
+        req = urllib.request.Request(
+            url,
+            data=body,
+            method="POST",
+            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                return json.loads(resp.read())
+        except Exception:  # noqa: BLE001
+            return {}
+
+    def _transfer_images(self, content: str, base_dir: Path | None, token: str) -> tuple[str, int, int, list[str]]:
+        """把正文里的图片逐张转存到微信图床，并把 src 换成 mmbiz 地址
+
+        微信 draft/add 会**过滤外链图**（含 data: 内嵌），所以必须先用
+        media/uploadimg 换成微信自己的地址。单张失败只记告警，不阻断推送。
+        """
+        total = 0
+        ok = 0
+        warnings: list[str] = []
+
+        def repl(match: re.Match) -> str:
+            nonlocal total, ok
+            tag = match.group(0)
+            sm = self.IMG_SRC_RE.search(tag)
+            if sm is None:
+                return tag
+            src = sm.group(2) if sm.group(2) is not None else sm.group(3)
+            if not src or "mmbiz.qpic.cn" in src:
+                return tag  # 本来就是微信图床，跳过
+            total += 1
+            data, filename, ctype, why = self._load_image(src, base_dir)
+            if data is None:
+                warnings.append(f"第 {total} 张图片转存失败（{why}），草稿里这张图会缺失: {src[:60]}")
+                return tag
+            url = f"{self.WECHAT_API_BASE}/media/uploadimg?access_token={token}"
+            resp = self._post_multipart(url, "media", filename, data, ctype)
+            new_src = resp.get("url", "")
+            if not new_src:
+                warnings.append(
+                    f"第 {total} 张图片转存失败: {self._api_error(resp) or '接口无响应'}，草稿里这张图会缺失"
+                )
+                return tag
+            ok += 1
+            return tag.replace(sm.group(0), f'src="{new_src}"')
+
+        return self.IMG_TAG_RE.sub(repl, content), total, ok, warnings
+
     def _get_access_token(self, app_id: str, app_secret: str) -> str:
         """通过 AppID + AppSecret 换取 access_token"""
         url = f"{self.WECHAT_API_BASE}/token?" + urllib.parse.urlencode(
@@ -271,8 +463,13 @@ class Publisher:
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:
                 data = json.loads(resp.read())
-            return data.get("access_token", "")
-        except Exception:
+            if "access_token" in data:
+                return data["access_token"]
+            # 典型场景：errcode 40164 —— 出口 IP 不在白名单，把原文留给用户看
+            self.last_token_error = self._api_error(data)
+            return ""
+        except Exception as e:  # noqa: BLE001
+            self.last_token_error = str(e)
             return ""
 
     @staticmethod

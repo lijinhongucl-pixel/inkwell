@@ -138,7 +138,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     pub.add_argument("--title", default="", help="文章标题（wechat 模式必填）")
     pub.add_argument("--author", default="", help="作者署名")
-    pub.add_argument("--thumb", default="", help="封面图 media_id（wechat 模式）")
+    pub.add_argument("--thumb", default="", help="封面图 media_id（已在微信上传的永久素材，二选一）")
+    pub.add_argument(
+        "--thumb-image", type=Path, default=None, help="封面图本地路径，自动上传拿 media_id（与 --thumb 二选一）"
+    )
+    pub.add_argument("--digest", default="", help="文章摘要（≤128 字，缺省由微信抓正文前 54 字）")
 
     # --- wordcheck ---
     wc = sub.add_parser("wordcheck", help="敏感词 / 合规检测")
@@ -379,9 +383,17 @@ def cmd_publish(args: argparse.Namespace) -> int:
             title=args.title or args.html.stem,
             author=args.author,
             thumb_media_id=args.thumb,
+            thumb_image=args.thumb_image,
+            digest=args.digest,
         )
     else:
         result = publisher.publish_to_clipboard(args.html.resolve())
+    # 逐条告警必须在成功/失败之前打出来：图片没转存成功时草稿里会缺图，
+    # 只报「推送成功」会让用户以为万事大吉
+    for w in result.warnings:
+        print(f"[{result.platform}] 警告: {w}")
+    if result.images_total:
+        print(f"[{result.platform}] 正文图片: {result.images_transferred}/{result.images_total} 张已转存到微信图床")
     if result.success:
         print(f"[{result.platform}] {result.message}")
         if result.media_id:
