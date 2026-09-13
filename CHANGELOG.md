@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.5] - 2026-09-13
+
+README 修复与仓库瘦身。这一轮解决的是「打开仓库首页就看到裂图」和「源码树里躺着
+一堆不该提交的中间产物」两类观感问题。
+
+### Fixed
+- **README 首屏裂图**：CI 徽章用的是 GitHub Actions 动态徽章，地址指向占位账号
+  `github.com/your-org/...`，仓库尚未 push 时必然 404，README 顶部就是一个
+  「图片加载失败」的破框；改为不依赖仓库地址的 shields.io 静态徽章（`CI` +
+  GitHub Actions 图标），并附上 push 后换回动态徽章的一行注释
+
+### Removed
+- `src/inkwell.egg-info/`：`pip install -e .` 生成的构建产物，内含已过期的
+  元数据（旧版本号、`your-org` 链接），被 `.gitignore` 覆盖但一直留在工作区
+- `src/processors/`、`src/templates/`：改名前的空壳目录（真正的代码在
+  `src/inkwell/processors/`），空目录在 git 里不会提交，但会误导按图索骥的读者
+- `output/`：本地跑流水线留下的中间产物与预览文件，可由 `inkwell run` 随时重建
+- `.pytest_cache/`、`.ruff_cache/`、各 `__pycache__/`：本地缓存
+
 ## [0.7.4] - 2026-09-13
 
 开源仓库规范化。这一轮对着 GitHub 的社区标准清单逐项体检，修掉了**会让 CI 门禁形同虚设、

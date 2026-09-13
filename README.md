@@ -6,11 +6,14 @@
 
 Markdown → WeChat HTML → Magazine Cover → Social Cards → Publish.
 
-[![CI](https://github.com/your-org/inkwell/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/inkwell/actions/workflows/ci.yml)
+<!-- 仓库 push 到 GitHub 后，把下面这行换成真实 CI 状态徽章（静态徽章不含「通过/失败」结论，
+     只是告诉读者 CI 跑在 GitHub Actions 上，避免占位期 README 出现裂图）：
+     [![CI](https://github.com/<你的账号>/inkwell/actions/workflows/ci.yml/badge.svg)](https://github.com/<你的账号>/inkwell/actions/workflows/ci.yml) -->
+[![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)](./.github/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-multi--stage-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Version](https://img.shields.io/badge/version-0.7.4-green.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.7.5-green.svg)](./CHANGELOG.md)
 
 [English](#english) | [中文](#中文)
 
