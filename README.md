@@ -21,7 +21,31 @@ Markdown → WeChat HTML → Magazine Cover → Social Cards → Publish.
 
 ---
 
-## 项目概况
+<!-- 效果展示区:首屏视觉冲击。图建议 1200×400 或类似宽幅比例 -->
+## 效果一览
+
+<table>
+  <tr>
+    <td width="50%" align="center"><b>公众号排版</b></td>
+    <td width="50%" align="center"><b>杂志封面</b></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/demo-wechat.png" alt="公众号排版效果"></td>
+    <td width="50%" align="center"><img src="docs/demo-cover.png" alt="杂志封面效果"></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><b>社交卡片</b></td>
+    <td width="50%" align="center"><b>一条命令全流程</b></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/demo-card.png" alt="社交卡片效果"></td>
+    <td width="50%" align="center"><img src="docs/demo-cli.gif" alt="终端命令演示"></td>
+  </tr>
+</table>
+
+> 图为实际产出截图。准备好后放到 `docs/` 目录下即可。
+
+---
 
 **Inkwell 是一条从 Markdown 直通发布的内容流水线**：写完文章之后那些最耗时的机械活，
 它一次做完 —— 排版成能直接粘进公众号的 HTML、压缩并上传配图、生成杂志封面与社交卡片，
