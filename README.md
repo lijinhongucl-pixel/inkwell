@@ -39,7 +39,7 @@ Markdown → WeChat HTML → Magazine Cover → Social Cards → Publish.
   </tr>
   <tr>
     <td width="50%" align="center"><img src="docs/demo-card.png" alt="社交卡片效果"></td>
-    <td width="50%" align="center"><img src="docs/demo-cli.gif" alt="终端命令演示"></td>
+    <td width="50%" align="center"><img src="docs/demo-cli.png" alt="终端命令演示"></td>
   </tr>
 </table>
 
