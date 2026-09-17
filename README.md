@@ -471,7 +471,7 @@ inkwell/
 │   ├── design_audit.py       # 三门设计审计
 │   └── cover_advisor.py      # 封面设计建议
 ├── tests/                    # 197 条测试
-├── examples/  sample/        # 示例文章
+├── sample/                   # 示例文章（含 demo、docker-build、sample 三篇）
 └── skill/                    # Agent Skill 定义
 ```
 
