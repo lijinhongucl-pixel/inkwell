@@ -263,9 +263,9 @@ def cmd_generate(args: argparse.Namespace) -> int:
 def cmd_validate(args: argparse.Namespace) -> int:
     from .processors.validator import CopyCompatValidator
 
-    warnings = CopyCompatValidator().scan(args.html.resolve())
-    if warnings:
-        for w in warnings:
+    vr = CopyCompatValidator().scan(args.html.resolve())
+    if vr.warnings:
+        for w in vr.warnings:
             print(w)
         return 1
     print("兼容性校验通过")

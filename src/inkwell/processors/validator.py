@@ -16,7 +16,23 @@ CSS 只可能出现在标签名与属性值里，所以先删掉 `>...<` 之间�
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass, field
 from pathlib import Path
+
+
+@dataclass
+class ValidationResult:
+    """校验结果，由 CLI 层负责输出，validator 本身不 print"""
+
+    warnings: list[str] = field(default_factory=list)
+
+    @property
+    def passed(self) -> bool:
+        return not self.warnings
+
+    @property
+    def warning_count(self) -> int:
+        return len(self.warnings)
 
 
 class CopyCompatValidator:
@@ -38,8 +54,8 @@ class CopyCompatValidator:
         """只保留标签与属性，剥掉全部文本节点"""
         return CopyCompatValidator.TEXT_NODE_RE.sub("><", html)
 
-    def scan(self, html_path: Path) -> list[str]:
-        """返回警告列表，空列表表示完全兼容"""
+    def scan(self, html_path: Path) -> ValidationResult:
+        """返回校验结果，空 warnings 表示完全兼容"""
         text = html_path.read_text(encoding="utf-8")
         markup = self.markup_only(text)
 
@@ -53,8 +69,4 @@ class CopyCompatValidator:
         if self.CJK_RE.search(text) and not self.LEAF_RE.search(markup):
             warnings.append('⚠️ 正文没有任何 <span leaf=""> 包裹，粘贴到公众号后样式会大面积丢失')
 
-        if not warnings:
-            print("[validator] 公众号兼容性校验通过 ✓")
-        else:
-            print(f"[validator] 发现 {len(warnings)} 类兼容性风险")
-        return warnings
+        return ValidationResult(warnings=warnings)

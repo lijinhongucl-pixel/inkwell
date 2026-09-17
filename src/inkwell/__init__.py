@@ -13,7 +13,7 @@ from .design_audit import AuditReport, DesignAuditor, GateResult, GateStatus
 from .generator import DraftGenerator
 from .processors.image_proc import ImageProcessor
 from .processors.markdown_proc import THEME_META, THEMES, MarkdownProcessor
-from .processors.validator import CopyCompatValidator
+from .processors.validator import CopyCompatValidator, ValidationResult
 from .publisher import Publisher, PublishResult
 from .screenshot import Screenshotter
 from .searcher import ContentSearcher, SearchResult
@@ -37,6 +37,7 @@ __all__ = [
     "ImageProcessor",
     # 校验
     "CopyCompatValidator",
+    "ValidationResult",
     # 搜索
     "ContentSearcher",
     "SearchResult",

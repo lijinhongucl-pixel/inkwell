@@ -78,9 +78,9 @@ class Pipeline:
 
         # 3. 生成发布版（CDN 外链）
         self.config.output_dir.mkdir(parents=True, exist_ok=True)
-        publish_path = self.config.output_dir / f"{self.config.input_md.stem}_预览.html"
-        publish_path.write_text(html, encoding="utf-8")
-        result.publish_html = publish_path
+        preview_path = self.config.output_dir / f"{self.config.input_md.stem}_预览.html"
+        preview_path.write_text(html, encoding="utf-8")
+        result.publish_html = preview_path
 
         # 4. 可选：生成 base64 本地预览版（外链图也会被内嵌，保证离线可看）
         if self.config.emit_local_preview:
@@ -91,7 +91,7 @@ class Pipeline:
 
         # 5. 公众号兼容性静态扫描
         if self.validator:
-            warnings = self.validator.scan(publish_path)
-            result.compat_warnings = warnings
+            vr = self.validator.scan(preview_path)
+            result.compat_warnings = vr.warnings
 
         return result

@@ -224,22 +224,22 @@ class TestCopyCompatValidator:
         html_file = tmp_path / "test.html"
         html_file.write_text('<p style="color:#333;">clean</p>', encoding="utf-8")
         v = CopyCompatValidator()
-        assert v.scan(html_file) == []
+        assert v.scan(html_file).passed
 
     def test_flex_detected(self, tmp_path):
         html_file = tmp_path / "bad.html"
         html_file.write_text('<div style="display:flex;">bad</div>', encoding="utf-8")
         v = CopyCompatValidator()
-        warnings = v.scan(html_file)
-        assert len(warnings) > 0
-        assert any("flex" in w for w in warnings)
+        vr = v.scan(html_file)
+        assert not vr.passed
+        assert any("flex" in w for w in vr.warnings)
 
     def test_base64_image_detected(self, tmp_path):
         html_file = tmp_path / "b64.html"
         html_file.write_text('<img src="data:image/png;base64,iVBOR..." />', encoding="utf-8")
         v = CopyCompatValidator()
-        warnings = v.scan(html_file)
-        assert any("base64" in w for w in warnings)
+        vr = v.scan(html_file)
+        assert any("base64" in w for w in vr.warnings)
 
     def test_forbidden_word_in_body_text_not_flagged(self, tmp_path):
         """回归：正文讲解「linear-gradient 会被丢掉」不该被当成自己用了渐变
@@ -255,7 +255,7 @@ class TestCopyCompatValidator:
             encoding="utf-8",
         )
         v = CopyCompatValidator()
-        assert v.scan(html_file) == []
+        assert v.scan(html_file).passed
 
     def test_real_linear_gradient_in_style_still_flagged(self, tmp_path):
         html_file = tmp_path / "grad.html"
@@ -264,27 +264,27 @@ class TestCopyCompatValidator:
             encoding="utf-8",
         )
         v = CopyCompatValidator()
-        warnings = v.scan(html_file)
-        assert any("linear-gradient" in w for w in warnings)
+        vr = v.scan(html_file)
+        assert any("linear-gradient" in w for w in vr.warnings)
 
     def test_missing_span_leaf_flagged(self, tmp_path):
         """中文正文一个 leaf 都没有 → 必须是警告（粘贴后样式会丢）"""
         html_file = tmp_path / "noleaf.html"
         html_file.write_text('<p style="color:#333;">中文正文</p>', encoding="utf-8")
         v = CopyCompatValidator()
-        warnings = v.scan(html_file)
-        assert any("span leaf" in w for w in warnings)
+        vr = v.scan(html_file)
+        assert any("span leaf" in w for w in vr.warnings)
 
     def test_span_leaf_present_no_warning(self, tmp_path):
         html_file = tmp_path / "leaf.html"
         html_file.write_text('<p style="color:#333;"><span leaf="">中文正文</span></p>', encoding="utf-8")
-        assert CopyCompatValidator().scan(html_file) == []
+        assert CopyCompatValidator().scan(html_file).passed
 
     def test_english_only_html_skips_leaf_check(self, tmp_path):
         """纯英文片段不适用 leaf 规则，不该刷警告"""
         html_file = tmp_path / "en.html"
         html_file.write_text('<p style="color:#333;">hello world</p>', encoding="utf-8")
-        assert CopyCompatValidator().scan(html_file) == []
+        assert CopyCompatValidator().scan(html_file).passed
 
 
 class TestPipelineIntegration:
